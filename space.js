@@ -33,7 +33,7 @@ scene.add(light);
 // instantiate loaders
 const loader = new OBJLoader();
 const textureLoader = new TextureLoader();
-// load a resource
+// load ship
 loader.load(
 
 	// resource URL
@@ -58,8 +58,9 @@ loader.load(
         });
 
 		scene.add( ship );
-        ship.position.set(0,0,0);
-        ship.scale.set(50,50,50);
+        ship.position.set(-250, 0,0);
+        ship.scale.set(30,30,30);
+        ship.rotateY(Math.PI/2);
 	},
 	// called when loading is in progress
 	function ( xhr ) {
@@ -70,6 +71,12 @@ loader.load(
 		console.log( 'An error happened' );
 	}
 );
+
+var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("planet_continental_Base_Color.jpg") });
+    var sphereGeometry_planet = new THREE.SphereGeometry(150, 32, 32);
+    var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
+    planet.position.set(250, -100, 0);
+    scene.add(planet);
 
 camera.position.z = 500;
 
