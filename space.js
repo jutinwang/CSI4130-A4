@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { TextureLoader } from 'three';
 import { GUI } from "dat.gui";
 
 // Setup scene, camera, and renderer
@@ -24,6 +25,50 @@ starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1, sizeAttenuation: true });
 const stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
+
+const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
+scene.add(light);
+
+// instantiate loaders
+const loader = new OBJLoader();
+const textureLoader = new TextureLoader();
+// load a resource
+loader.load(
+
+	// resource URL
+	'ship/Ship.obj',
+	// called when resource is loaded
+	function ( ship ) {
+        const shipTexture = textureLoader.load("ship/textures/Albedo_Ship.png");
+        const engineTexture = textureLoader.load("ship/textures/Albedo_Engine.png");
+        ship.traverse((child) => {
+            console.log(child.name); // Check names in console
+            if (child.isMesh) {
+                // Assign materials based on object name
+                if (child.name.includes("Engine")) {
+                    child.material = new THREE.MeshStandardMaterial({ map: engineTexture });
+                } else if (child.name.includes("Vehicle")) {
+                    child.material = new THREE.MeshStandardMaterial({ map: shipTexture });
+                } else {
+                    child.material = new THREE.MeshStandardMaterial({ color: 0x999999 }); // Default material
+                }
+            }
+    
+        });
+
+		scene.add( ship );
+        ship.position.set(0,0,0);
+        ship.scale.set(50,50,50);
+	},
+	// called when loading is in progress
+	function ( xhr ) {
+		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+	},
+	// called when loading has errors
+	function ( error ) {
+		console.log( 'An error happened' );
+	}
+);
 
 camera.position.z = 500;
 
