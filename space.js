@@ -2,6 +2,7 @@ import * as THREE from "three";
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { TextureLoader } from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from "dat.gui";
 
 // Setup scene, camera, and renderer
@@ -50,7 +51,7 @@ loader.load(
                 } else if (child.name.includes("Vehicle")) {
                     child.material = new THREE.MeshStandardMaterial({ map: shipTexture });
                 } else {
-                    child.material = new THREE.MeshStandardMaterial({ color: 0x999999 }); // Default material
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
                 }
             }
     
@@ -89,3 +90,14 @@ window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 });
+
+const orbit = new OrbitControls( camera, renderer.domElement );
+    orbit.minDistance = 350;
+    orbit.maxDistance = 500;
+    orbit.addEventListener( 'change', render );
+
+function render() {
+
+    renderer.render( scene, camera );
+
+}
