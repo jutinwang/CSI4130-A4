@@ -37,11 +37,11 @@ const textureLoader = new TextureLoader();
 loader.load(
 
 	// resource URL
-	'ship/Ship.obj',
+	'./static/models/ship/Ship.obj',
 	// called when resource is loaded
 	function ( ship ) {
-        const shipTexture = textureLoader.load("ship/textures/Albedo_Ship.png");
-        const engineTexture = textureLoader.load("ship/textures/Albedo_Engine.png");
+        const shipTexture = textureLoader.load("./static/models/ship/textures/Albedo_Ship.png");
+        const engineTexture = textureLoader.load("./static/models/ship/textures/Albedo_Engine.png");
         ship.traverse((child) => {
             console.log(child.name); // Check names in console
             if (child.isMesh) {
@@ -72,7 +72,7 @@ loader.load(
 	}
 );
 
-var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("planet_continental_Base_Color.jpg") });
+var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("./static/models/planet/textures/planet_continental_Base_Color.jpg") });
     var sphereGeometry_planet = new THREE.SphereGeometry(150, 32, 32);
     var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
     planet.position.set(250, -100, 0);
