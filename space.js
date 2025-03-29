@@ -5,11 +5,13 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
 import { GUI } from "dat.gui";
+import FireParticle from "./fire-particle.js";
 
 /**
  * Global variables
  */
 let stars;
+const clock = new THREE.Clock();
 
 /**
  * Loaders
@@ -49,8 +51,8 @@ pmremGenerator.compileEquirectangularShader();
 const orbit = new OrbitControls( camera, canvas );
 orbit.enableDamping = true;
 orbit.dampingFactor = 0.1;
-orbit.minDistance = 350;
-orbit.maxDistance = 500;
+orbit.minDistance = 15;
+orbit.maxDistance = 100;
 
 //Setup scene
 const scene = new THREE.Scene();
@@ -60,6 +62,17 @@ setupEnvMap();
 
 // Create starfield
 createStarticles(3000);
+
+//create fire effect
+// let fire = new FireParticle({
+//     source: new THREE.Vector3(0, 0, 0),
+//     direction: new THREE.Vector3(0,1,0), 
+//     length: 10, 
+//     radius: 2, 
+//     rate: 10, 
+//     speed: 2
+// });
+// scene.add(fire.getMesh());
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -89,8 +102,8 @@ objLoader.load(
         });
 
 		scene.add( ship );
-        ship.position.set(-250, 0,0);
-        ship.scale.set(30,30,30);
+        ship.position.set(-50, 0,0);
+        //ship.scale.set(30,30,30);
         ship.rotateY(Math.PI/2);
 	},
 	// called when loading is in progress
@@ -105,9 +118,9 @@ objLoader.load(
 
 //create the planet
 var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("./static/models/planet/textures/planet_continental_Base_Color.jpg") });
-var sphereGeometry_planet = new THREE.SphereGeometry(150, 32, 32);
+var sphereGeometry_planet = new THREE.SphereGeometry(25, 32, 32);
 var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
-planet.position.set(250, -100, 0);
+planet.position.set(0, 0, 0);
 scene.add(planet);
 
 function createStarticles(starsCount) {
@@ -160,6 +173,10 @@ function setupEnvMap() {
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
+
+    // let delta = clock.getDelta();
+
+    // fire.update(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
