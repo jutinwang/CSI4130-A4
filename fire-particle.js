@@ -4,16 +4,32 @@ export default class FireParticle {
 
     particleRateBuffer = 0.0
 
+    colourStops = [
+        {t: 0.0, colour: new THREE.Color(0xFFFEBA)},
+        {t: 0.25, colour: new THREE.Color(0xFFED59)},
+        {t: 0.5, colour: new THREE.Color(0xF88200)},
+        {t: 0.75, colour: new THREE.Color(0x706E6E)}
+    ];
+
+    sizeStops = [
+        {t: 0.0, size: 0.8},
+        {t: 0.55, size: 1.8},
+        {t: 0.7, size: 2.0},
+        {t: 0.75, size: 1.2},
+        {t: 1.0, size: 0.9}
+    ];
+
     constructor({
         source = new THREE.Vector3(0, 0, 0), 
         direction = new THREE.Vector3(1, 0, 0),
+        scale = new THREE.Vector3(1, 1, 1),
         length = 5,
         radius = 2.5,
         rate = 5,
         speed = 5
     }) {
 
-        this.source = source;
+        //this.source = source;
         this.direction = direction;
         this.length = length;
         this.radius = radius;
@@ -21,11 +37,11 @@ export default class FireParticle {
         this.speed = speed;
         this.maxParticles = this.getMaxParticles();
 
-        let end = this.getSplineEndpoint(this.source, this.direction, this.length);
-        this.path = this.getSpline(this.source, end);
+        let end = this.getSplineEndpoint(source, this.direction, this.length);
+        this.path = this.getSpline(source, end);
 
         this.particles = [];
-        this.mesh = this.setupMesh(this.maxParticles);
+        this.mesh = this.setupMesh(this.maxParticles, source, scale);
     }
 
     //getters and setters
@@ -45,6 +61,43 @@ export default class FireParticle {
     //gets the endpoint of a linear spline given a starting vector, direction vector and length
     getSplineEndpoint(start, dir, len) {
         return start.clone().addScaledVector(dir, len);
+    }
+
+    getColourAtT(t) {
+        for (let i = 0; i < this.colourStops.length - 1; i++) {
+            let c1 = this.colourStops[i];
+            let c2 = this.colourStops[i + 1];
+
+            //linearly interpolate between two colour stops if appropriate t
+            if (c1.t <= t && t <= c2.t) {
+                let normT = this.normalizeValue(c1.t, c2.t, t);
+                return new THREE.Color().lerpColors(c1.colour, c2.colour, normT);
+            }
+        }
+
+        //default colour
+        return this.colourStops[this.colourStops.length - 1].colour;
+    }
+
+    getSizeAtT(t) {
+        for (let i = 0; i < this.sizeStops.length - 1; i++) {
+            let s1 = this.sizeStops[i];
+            let s2 = this.sizeStops[i + 1];
+
+            //linearly interpolate between two colour stops if appropriate t
+            if (s1.t <= t && t <= s2.t) {
+                let normT = this.normalizeValue(s1.t, s2.t, t);
+                let n = THREE.MathUtils.lerp(s1.size, s2.size, normT);
+                return n;
+            }
+        }
+
+        //default colour
+        return this.sizeStops[this.sizeStops.length - 1].size;
+    }
+
+    normalizeValue(min, max, value) {
+        return (value - min) / (max - min)
     }
 
     //gets the maximum particles for instanced drawing
@@ -86,17 +139,32 @@ export default class FireParticle {
         return center.clone().add(offset);
     }
 
+    getRandomQuaternion() {
+        let randVec = new THREE.Vector3(
+            Math.random() * 2 - 1, 
+            Math.random() * 2 - 1, 
+            Math.random() * 2 - 1
+        ).normalize();
+
+        let randAngle = Math.random() * Math.PI * 2;
+
+        return new THREE.Quaternion().setFromAxisAngle(randVec, randAngle);
+    }
+
     //sets up the instance mesh with max count particles
-    setupMesh(count) {
+    setupMesh(count, position, scale) {
 
         //set up material
         const material = new THREE.MeshBasicMaterial();
 
         //set up geometry
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const geometry = new THREE.IcosahedronGeometry(1);
 
         //set up instanced mesh
         const mesh = new THREE.InstancedMesh(geometry, material, count);
+
+        mesh.position.set(position.x, position.y, position.z);
+        mesh.scale.set(scale.x, scale.y, scale.z);
 
         //the mesh will be drawn every frame
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -109,8 +177,8 @@ export default class FireParticle {
 
     generateParticles(timeElapsed) {
         
-        let scale = new THREE.Vector3(1, 1, 1);
-        let rotQuaternion = new THREE.Quaternion();
+        let scale = this.mesh.scale;
+        //let rotQuaternion = new THREE.Quaternion();
 
         //need to get the number of particles to generat at this point
         //smooths the particle rate to accomodate multiple successive calls
@@ -125,13 +193,17 @@ export default class FireParticle {
             let life = ((Math.random() * 0.25) + 0.75) * this.length;
 
             //get random position of particle at source point
-            let randPos = this.getRandomPointInDisk(this.source, this.direction, this.radius);
+            
+            let randPos = this.getRandomPointInDisk(this.mesh.position, this.direction, this.radius);
+
+            let randRot = this.getRandomQuaternion();
 
             //add particle to array for later processing
             this.particles.push({
                 position: randPos,
-                quaternion: rotQuaternion,
+                quaternion: randRot,
                 scale: scale,
+                altScale: scale,
                 colour: new THREE.Color(),
                 life: life,
                 speed: this.speed,
@@ -148,7 +220,7 @@ export default class FireParticle {
             let particle = this.particles[i];
 
             let modelMatrix = new THREE.Matrix4();
-            modelMatrix.compose(particle.position, particle.quaternion, particle.scale);
+            modelMatrix.compose(particle.position, particle.quaternion, particle.altScale);
         
             this.mesh.setMatrixAt(i, modelMatrix);
 
@@ -196,7 +268,16 @@ export default class FireParticle {
         this.mesh.count = pLength;
 
         //update colour and size of particles
-        //console.log(this.particles)
+        for (let p of this.particles) {
+            let reverseLife = this.length - p.life;
+
+            let t = this.normalizeValue(0, this.length, reverseLife);
+
+            p.colour = this.getColourAtT(t);
+
+            let newScale = p.scale.clone();
+            p.altScale = newScale.multiplyScalar(this.getSizeAtT(t));
+        }
     }
 
     //main update method to run in animation cycle
