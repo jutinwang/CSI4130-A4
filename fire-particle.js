@@ -177,8 +177,12 @@ export default class FireParticle {
 
     generateParticles(timeElapsed) {
         
+        //get the initial scale for all particles from the mesh
         let scale = this.mesh.scale;
-        //let rotQuaternion = new THREE.Quaternion();
+
+        //rotate the direction vector by the mesh's rotation
+        //allows the use of Three.js parent-child transformation hierarchy
+        let rotDirection = this.direction.clone().applyQuaternion(this.mesh.quaternion);
 
         //need to get the number of particles to generat at this point
         //smooths the particle rate to accomodate multiple successive calls
@@ -194,7 +198,7 @@ export default class FireParticle {
 
             //get random position of particle at source point
             
-            let randPos = this.getRandomPointInDisk(this.mesh.position, this.direction, this.radius);
+            let randPos = this.getRandomPointInDisk(this.mesh.position, rotDirection, this.radius);
 
             let randRot = this.getRandomQuaternion();
 
@@ -207,7 +211,7 @@ export default class FireParticle {
                 colour: new THREE.Color(),
                 life: life,
                 speed: this.speed,
-                direction: this.direction
+                direction: rotDirection
             });
         }
 
