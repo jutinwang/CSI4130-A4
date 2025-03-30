@@ -23,6 +23,13 @@ const objLoader = new OBJLoader();
 const textureLoader = new TextureLoader();
 const gltfLoader = new GLTFLoader();
 
+/**
+ * Model Loaders
+ */
+let home = new THREE.Object3D();
+let sign = new THREE.Object3D();
+let scroll = new THREE.Object3D();
+
 
 /**
  * Camera
@@ -124,8 +131,7 @@ planet.position.set(0, -35, 0);
 scene.add(planet);
 
 
-let home = new THREE.Object3D();
-// Load a glTF resource
+// Load home
 gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
         const homeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_0.png");
         const extraHomeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_1.png");
@@ -159,8 +165,7 @@ gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
 	}
 );
 
-let sign = new THREE.Object3D();
-// Load a glTF resource
+// Wooden Sign
 gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
         const signTexture = textureLoader.load("./static/models/wooden_sign/textures/lambert1_baseColor.jpeg");
         sign = gltf.scene;
@@ -189,6 +194,26 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
 	function ( error ) {
 		console.log( error);
 	}
+);
+
+// Scroll / Newspaper loader
+gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
+    scroll = gltf.scene;
+    
+    scroll.scale.set(25, 25, 25);
+    scroll.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
+    scroll.rotateY(-Math.PI/1.55)
+    scene.add(scroll);
+
+},
+// called while loading is progressing
+function ( xhr ) {
+    console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+},
+// called when loading has errors
+function ( error ) {
+    console.log( error);
+}
 );
 
 // Create the starfield
