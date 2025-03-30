@@ -4,6 +4,7 @@ import { TextureLoader } from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from "dat.gui";
 import FireParticle from "./fire-particle.js";
 
@@ -20,6 +21,7 @@ const cubeTextureLoader = new THREE.CubeTextureLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const textureLoader = new TextureLoader();
+const gltfLoader = new GLTFLoader();
 
 
 /**
@@ -118,11 +120,80 @@ objLoader.load(
 
 //create the planet
 var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("./static/models/planet/textures/planet_continental_Base_Color.jpg") });
-var sphereGeometry_planet = new THREE.SphereGeometry(25, 32, 32);
+var sphereGeometry_planet = new THREE.SphereGeometry(35, 32, 32);
 var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
-planet.position.set(0, 0, 0);
+planet.position.set(0, -35, 0);
 scene.add(planet);
 
+
+let home = new THREE.Object3D();
+// Load a glTF resource
+gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
+        const homeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_0.png");
+        const extraHomeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_1.png");
+        home = gltf.scene;
+        home.traverse((child) => {
+            if (child.isMesh) {
+                // Assign materials based on object name
+                if (child.name.includes("")) {
+                    child.material = new THREE.MeshStandardMaterial({ map: homeTexture });
+                } else if (child.name.includes("node_id115")) {
+                    child.material = new THREE.MeshStandardMaterial({ map: extraHomeTexture });
+                } else {
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
+                }
+            }
+    
+        });
+        home.scale.set(25, 25, 25);
+        home.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
+        home.rotateY(-Math.PI/1.55)
+        scene.add(home);
+
+	},
+	// called while loading is progressing
+	function ( xhr ) {
+		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+	},
+	// called when loading has errors
+	function ( error ) {
+		console.log( error);
+	}
+);
+
+let sign = new THREE.Object3D();
+// Load a glTF resource
+gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
+        const signTexture = textureLoader.load("./static/models/wooden_sign/textures/lambert1_baseColor.jpeg");
+        sign = gltf.scene;
+        sign.traverse((child) => {
+            if (child.isMesh) {
+                // Assign materials based on object name
+                if (child.name.includes("")) {
+                    child.material = new THREE.MeshStandardMaterial({ map: signTexture });
+                    
+                } else {
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
+                }
+            }
+        });
+        sign.scale.set(25, 25, 25);
+        sign.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
+        sign.rotateY(-Math.PI/1.55)
+        scene.add(sign);
+
+	},
+	// called while loading is progressing
+	function ( xhr ) {
+		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+	},
+	// called when loading has errors
+	function ( error ) {
+		console.log( error);
+	}
+);
+
+// Create the starfield
 function createStarticles(starsCount) {
     const starsGeometry = new THREE.BufferGeometry();
 
@@ -134,7 +205,7 @@ function createStarticles(starsCount) {
 
     starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1, sizeAttenuation: true });
+    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, sizeAttenuation: true });
     stars = new THREE.Points(starsGeometry, starsMaterial);
     scene.add(stars);
 }
