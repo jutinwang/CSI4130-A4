@@ -10,7 +10,7 @@ import FireParticle from "./fire-particle.js";
 /**
  * Global variables
  */
-let stars;
+let stars, fire, fire2;
 const clock = new THREE.Clock();
 
 /**
@@ -64,15 +64,7 @@ setupEnvMap();
 createStarticles(3000);
 
 //create fire effect
-// let fire = new FireParticle({
-//     source: new THREE.Vector3(0, 0, 0),
-//     direction: new THREE.Vector3(0,1,0), 
-//     length: 10, 
-//     radius: 2, 
-//     rate: 10, 
-//     speed: 2
-// });
-// scene.add(fire.getMesh());
+
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -102,6 +94,12 @@ objLoader.load(
         });
 
 		scene.add( ship );
+
+        //create fire particles for the ships exhaust
+        createShipExhaust();
+
+        ship.add(fire.getMesh());
+        ship.add(fire2.getMesh());
         ship.position.set(-50, 0,0);
         //ship.scale.set(30,30,30);
         ship.rotateY(Math.PI/2);
@@ -139,6 +137,39 @@ function createStarticles(starsCount) {
     scene.add(stars);
 }
 
+function createShipExhaust() {
+    fire = new FireParticle({
+        source: new THREE.Vector3(-1.5, 0, -1.7),
+        direction: new THREE.Vector3(0, 0, -1).normalize(), 
+        scale: new THREE.Vector3(0.5, 0.5, 0.5),
+        length: 15, 
+        radius: 1, 
+        rate: 15, 
+        speed: 5
+    });
+    
+    fire2 = new FireParticle({
+        source: new THREE.Vector3(1.5, 0, -1.7),
+        direction: new THREE.Vector3(0, 0, -1).normalize(), 
+        scale: new THREE.Vector3(0.5, 0.5, 0.5),
+        length: 15, 
+        radius: 1, 
+        rate: 15, 
+        speed: 5
+    });
+    
+    // let fire3 = new FireParticle({
+    //     source: new THREE.Vector3(0, 0, 0),
+    //     direction: new THREE.Vector3(0, 1, 0).normalize(), 
+    //     scale: new THREE.Vector3(1, 1, 1),
+    //     length: 50, 
+    //     radius: 2.5, 
+    //     rate: 70, 
+    //     speed: 15
+    // });
+    // scene.add(fire3.getMesh());
+}
+
 function setupEnvMap() {
     // load the HDRI texture and use it as the environment map to get ambient lighting
     rgbeLoader.load('./static/envMaps/2k_stars_milky_way.hdr', texture => {
@@ -174,9 +205,12 @@ function setupEnvMap() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // let delta = clock.getDelta();
+    let delta = clock.getDelta();
 
-    // fire.update(delta);
+    //update the particle emitters with elapsed time
+    fire.update(delta);
+    fire2.update(delta);
+    //fire3.update(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
