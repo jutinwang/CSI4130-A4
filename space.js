@@ -83,16 +83,25 @@ texture.needsUpdate = true;
 let sunShade = new THREE.Color(0xde3009);
 let sunShade2 = new THREE.Color(0xfae04b);
 
-let sunGeometry = new THREE.SphereGeometry(20, 64, 64);
-let sunMaterial = new THREE.MeshStandardMaterial({ map: texture});
-let sphere = new THREE.Mesh(sunGeometry, sunMaterial);
-scene.add(sphere);
+let sunGeometry = new THREE.SphereGeometry(200, 64, 64);
+let sunMaterial = new THREE.MeshStandardMaterial({ 
+    map: texture
+});
+let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+
+sun.position.set(500, 100, -500);
+scene.add(sun);
 
 //generate the asteroid belt
 generateAsteroids(200, 100, 15, 5, 10);
 
-const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
+const light = new THREE.AmbientLight(0xffffff, 0.1); // Soft white light
 scene.add(light);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 20); 
+sunLight.position.set(500, 100, -500);  
+sunLight.target.position.set(0, 0, 0);
+scene.add(sunLight);
 
 // load ship
 objLoader.load(
@@ -144,7 +153,7 @@ var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load(
 var sphereGeometry_planet = new THREE.SphereGeometry(25, 32, 32);
 var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
 planet.position.set(0, 0, 0);
-//scene.add(planet);
+scene.add(planet);
 
 function createStarticles(starsCount) {
     const starsGeometry = new THREE.BufferGeometry();
@@ -231,7 +240,7 @@ function updateSunTexture(elapsedTime) {
         for (let x = 0; x < textureSize; x++) {
 
             
-            let t = perlin.generateNoise(x / noiseScale + elapsedTime, y / noiseScale + elapsedTime);
+            let t = perlin.generateNoise((x / noiseScale) + (elapsedTime * 0.5), (y / noiseScale) + (elapsedTime * 0.5));
 
             //normalize to the range 0,1
             t = (t + 1) / 2;
