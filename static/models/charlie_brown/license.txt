@@ -1,0 +1,11 @@
+Model Information:
+* title:	Wii U - The Peanuts Movie Charlie Brown.
+* source:	https://sketchfab.com/3d-models/wii-u-the-peanuts-movie-charlie-brown-9acef7efdb42429ab0f79be59c193d41
+* author:	Dr. Heinz Doofenshmirtz (https://sketchfab.com/Dr._Heinz_Doofenshmirtz)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Wii U - The Peanuts Movie Charlie Brown." (https://sketchfab.com/3d-models/wii-u-the-peanuts-movie-charlie-brown-9acef7efdb42429ab0f79be59c193d41) by Dr. Heinz Doofenshmirtz (https://sketchfab.com/Dr._Heinz_Doofenshmirtz) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
