@@ -8,7 +8,6 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from "dat.gui";
 import { mx_bilerp_0 } from "three/src/nodes/materialx/lib/mx_noise.js";
 import FireParticle from "./fire-particle.js";
@@ -164,7 +163,7 @@ sun.position.set(500, 100, -500);
 scene.add(sun);
 
 //generate the asteroid belt
-generateAsteroids(200, 100, 15, 5, 10);
+generateAsteroids(200, 150, 15, 5, 10);
 
 //create fire particles for the ships exhaust
 createShipExhaust();
@@ -631,14 +630,20 @@ function animate() {
     fire.update(delta);
     fire2.update(delta);
     //fire3.update(delta);
-    scrollFire.update(delta);
+
+    if ( scrollFire != undefined) {
+        scrollFire.update(delta);
+    }
+    
     updateSunTexture(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
 
     //rotate asteroids
-    asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
+    if (asteroidGroup != undefined) {
+        asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
+    }
 
     //update the orbit controls in animation loop to improve framerate
     orbit.update();
