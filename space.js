@@ -15,12 +15,14 @@ import FireParticle from "./fire-particle.js";
  * Global variables
  */
 let stars, fire, fire2;
+let gui, controls;
 const clock = new THREE.Clock();
 const pi = Math.PI;
 let animated = true;
 let jumpSpeed = 0.05; // Adjust for faster/slower jumps
 let angle = 0;
 let bones = {};
+let hasExploded = false; // Track explosion state
 
 let mvmtAmt = 0.5;
 let arrowKeys = {
@@ -129,7 +131,11 @@ setupEnvMap();
 // Create starfield
 createStarticles(3000);
 
-//create fire effect
+//create fire particles for the ships exhaust
+createShipExhaust();
+
+//create controls
+setupControls();
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -509,58 +515,58 @@ function animate() {
 }
 animate();
 
-// function createExplosion(position) {
-//     const particleCount = 100;
-//     const particlesGeometry = new THREE.BufferGeometry();
-//     const positions = new Float32Array(particleCount * 3);
-//     const velocities = [];
+function createExplosion(position) {
+    const particleCount = 100;
+    const particlesGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
 
-//     for (let i = 0; i < particleCount; i++) {
-//         positions[i * 3] = position.x;
-//         positions[i * 3 + 1] = position.y;
-//         positions[i * 3 + 2] = position.z;
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
 
-//         // Random velocity for explosion effect
-//         velocities.push(
-//             (Math.random() - 0.5) * 5, // X velocity
-//             (Math.random() - 0.5) * 5, // Y velocity
-//             (Math.random() - 0.5) * 5  // Z velocity
-//         );
-//     }
+        // Random velocity for explosion effect
+        velocities.push(
+            (Math.random() - 0.5) * 5, // X velocity
+            (Math.random() - 0.5) * 5, // Y velocity
+            (Math.random() - 0.5) * 5  // Z velocity
+        );
+    }
 
-//     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-//     const particlesMaterial = new THREE.PointsMaterial({
-//         color: 0xffd700, // Gold color for explosion
-//         size: 2,
-//         transparent: true,
-//         opacity: 1,
-//     });
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particlesMaterial = new THREE.PointsMaterial({
+        color: 0xffd700, // Gold color for explosion
+        size: 2,
+        transparent: true,
+        opacity: 1,
+    });
 
-//     const explosionParticles = new THREE.Points(particlesGeometry, particlesMaterial);
-//     scene.add(explosionParticles);
+    const explosionParticles = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(explosionParticles);
 
-//     // Animate explosion (particles spreading out)
-//     let explosionTime = 0;
-//     function animateExplosion() {
-//         if (explosionTime > 1) {
-//             scene.remove(explosionParticles); // Remove explosion after effect
-//             return;
-//         }
+    // Animate explosion (particles spreading out)
+    let explosionTime = 0;
+    function animateExplosion() {
+        if (explosionTime > 1) {
+            scene.remove(explosionParticles); // Remove explosion after effect
+            return;
+        }
 
-//         explosionTime += 0.02;
+        explosionTime += 0.02;
 
-//         const positionsArray = particlesGeometry.attributes.position.array;
-//         for (let i = 0; i < particleCount; i++) {
-//             positionsArray[i * 3] += velocities[i * 3] * 0.5;
-//             positionsArray[i * 3 + 1] += velocities[i * 3 + 1] * 0.5;
-//             positionsArray[i * 3 + 2] += velocities[i * 3 + 2] * 0.5;
-//         }
-//         particlesGeometry.attributes.position.needsUpdate = true;
+        const positionsArray = particlesGeometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+            positionsArray[i * 3] += velocities[i * 3] * 0.5;
+            positionsArray[i * 3 + 1] += velocities[i * 3 + 1] * 0.5;
+            positionsArray[i * 3 + 2] += velocities[i * 3 + 2] * 0.5;
+        }
+        particlesGeometry.attributes.position.needsUpdate = true;
 
-//         requestAnimationFrame(animateExplosion);
-//     }
-//     animateExplosion();
-// }
+        requestAnimationFrame(animateExplosion);
+    }
+    animateExplosion();
+}
 
 function animateScroll() {
     requestAnimationFrame(animateScroll);
@@ -571,7 +577,6 @@ function animateScroll() {
         let time = movementTime % 1; // Keep time between 0 and 1
         let position = linePath.getPoint(time);
         let tangent = linePath.getTangent(time).normalize();
-
         if (scroll) {
             if (arrowKeys.ArrowUp) {
                 console.log("up key press")
@@ -589,22 +594,33 @@ function animateScroll() {
                 console.log("right key press")
                 linePath.moveStart(mvmtAmt, 0);
             }
-            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); // controls starting position of scroll
+            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); /
+          
             scroll.rotateOnAxis(linePath, Math.PI/4)
+          
             let quater = new THREE.Quaternion();
             let flip = new THREE.Quaternion();
 
             quater.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent);
             flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
             scroll.quaternion.multiplyQuaternions(quater, flip);
+            
+            // Trigger explosion **only once** when reaching the end
+            if (time > 0.99 && !hasExploded) { 
+                let explosionPosition = scroll.position.clone(); // Capture position BEFORE reset
+                createExplosion(explosionPosition); // Use captured position
+                hasExploded = true; // Mark explosion as triggered
+            }
 
-            // if (movementTime >= 1) {
-            //     createExplosion(scroll.position); // Explosion at final position
-            // }
+            // Reset explosion flag when movement starts over
+            if (time < movementSpeed) {
+                hasExploded = false;
+            }
         }
     }
     render();
 }
+
 
 function animateJump() {
     requestAnimationFrame(animateJump);
@@ -638,6 +654,55 @@ function animateJump() {
     }
 
     renderer.render(scene, camera);
+}
+
+/**
+ * Set up controls
+ */
+function setupControls() {
+
+    controls = new function() {
+        this.fireParams = { 
+            scale: 0.5,
+            length: 15, 
+            radius: 1, 
+            rate: 15, 
+            speed: 5
+        };
+
+        this.updateFireScale = () => {
+            fire.setScale(this.fireParams.scale);
+            fire2.setScale(this.fireParams.scale);
+        }
+
+        this.updateFireLength = () => {
+            fire.setLength(this.fireParams.length);
+            fire2.setLength(this.fireParams.length);
+        }
+        this.updateFireRadius = () => {
+            fire.setRadius(this.fireParams.radius);
+            fire2.setRadius(this.fireParams.radius);
+        }
+        this.updateFireRate = () => {
+            fire.setRate(this.fireParams.rate);
+            fire2.setRate(this.fireParams.rate);
+        }
+        this.updateFireSpeed = () => {
+            fire.setSpeed(this.fireParams.speed);
+            fire2.setSpeed(this.fireParams.speed);
+        }
+    }
+    gui = new GUI();
+
+    //let folder = gui.addFolder('Solar System');
+    //add general solar system controls here
+
+    let folder = gui.addFolder('Spaceship Parameters');
+    folder.add(controls.fireParams, 'scale', 0.5, 3).onChange(controls.updateFireScale).name('Particle Scale');
+    folder.add(controls.fireParams, 'length', 5, 50).onChange(controls.updateFireLength).name('Particle Length');
+    folder.add(controls.fireParams, 'radius', 0.5, 5).onChange(controls.updateFireRadius).name('Emitter Radius');
+    folder.add(controls.fireParams, 'rate', 1, 50).onChange(controls.updateFireRate).name('Particle Rate');
+    folder.add(controls.fireParams, 'speed', 0.5, 25).onChange(controls.updateFireSpeed).name('Particle Speed');
 }
 
 /**
