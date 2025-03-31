@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
 import { GUI } from "dat.gui";
 import FireParticle from "./fire-particle.js";
+import Perlin from './perlin.js';
 
 /**
  * Global variables
@@ -64,7 +65,26 @@ setupEnvMap();
 createStarticles(3000);
 
 //create fire effect
+createShipExhaust();
 
+//create the sun
+const perlin = new Perlin();
+
+let textureSize = 1024;
+let noiseScale = 10;
+
+//make the texture size **3 times 3 for vec3's
+let textureData = new Uint8Array(textureSize * textureSize * 4);
+let texture = new THREE.DataTexture(textureData, textureSize, textureSize, THREE.RGBAFormat);
+texture.needsUpdate = true;
+
+let sunShade = new THREE.Color(0xde3009);
+let sunShade2 = new THREE.Color(0xfae04b);
+
+let sunGeometry = new THREE.SphereGeometry(20, 64, 64);
+let sunMaterial = new THREE.MeshStandardMaterial({ map: texture});
+let sphere = new THREE.Mesh(sunGeometry, sunMaterial);
+scene.add(sphere);
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -96,7 +116,7 @@ objLoader.load(
 		scene.add( ship );
 
         //create fire particles for the ships exhaust
-        createShipExhaust();
+        
 
         ship.add(fire.getMesh());
         ship.add(fire2.getMesh());
@@ -119,7 +139,7 @@ var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load(
 var sphereGeometry_planet = new THREE.SphereGeometry(25, 32, 32);
 var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
 planet.position.set(0, 0, 0);
-scene.add(planet);
+//scene.add(planet);
 
 function createStarticles(starsCount) {
     const starsGeometry = new THREE.BufferGeometry();
@@ -201,6 +221,31 @@ function setupEnvMap() {
 
 }
 
+function updateSunTexture(elapsedTime) {
+    for (let y = 0; y < textureSize; y++) {
+        for (let x = 0; x < textureSize; x++) {
+
+            
+            let t = perlin.generateNoise(x / noiseScale + elapsedTime, y / noiseScale + elapsedTime);
+
+            //normalize to the range 0,1
+            t = (t + 1) / 2;
+
+            // interpolate between the sun colours
+            let interpColour = new THREE.Color().lerpColors(sunShade, sunShade2, t);
+
+            let index = (y * textureSize + x) * 4;
+            textureData[index] = interpColour.r * 255;
+            textureData[index + 1] = interpColour.g * 255;
+            textureData[index + 2] = interpColour.b * 255;
+            texture[index + 3] = 255;
+        }
+    }
+
+    texture.needsUpdate = true;
+}
+
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -211,6 +256,7 @@ function animate() {
     fire.update(delta);
     fire2.update(delta);
     //fire3.update(delta);
+    updateSunTexture(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;

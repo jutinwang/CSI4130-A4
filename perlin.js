@@ -18,22 +18,21 @@ export default class Perlin {
     }
 
     generatePermutation() {
-        let p = new Uint8Array(512);
+        let p = new Uint8Array(256);
 
-        //generate ints from 0 to 255, twice
+        // fill array with values 0-255
         for (let i = 0; i < 256; i++) {
-            p[i] = p[i + 256] = Math.floor(Math.random() * 256);
+            p[i] = i;
         }
 
-        //shuffle the array
-        for (let i = p.length; i > 0; i--) {
+        // Fisher-Yates shuffle
+        for (let i = 255; i > 0; i--) {
             let j = Math.floor(Math.random() * (i + 1));
-            let temp = p[i];
-            p[i] = p[j];
-            p[j] = temp;
+            [p[i], p[j]] = [p[j], p[i]];
         }
 
-        return p;
+        // duplicate to prevent index errors
+        return new Uint8Array([...p, ...p]);
     }
 
     generateNoise(x, y) {
@@ -43,17 +42,17 @@ export default class Perlin {
         x -= Math.floor(x);
         y -= Math.floor(y);
 
-        let u = fade(x);
-        let v = fade(y);
+        let u = this.fade(x);
+        let v = this.fade(y);
 
         let aa = this.permutation[X] + Y;
         let ab = this.permutation[X] + Y + 1;
         let ba = this.permutation[X + 1] + Y;
         let bb = this.permutation[X + 1] + Y + 1;
 
-        return lerp(
-            lerp(grad(this.permutation[aa], x, y), grad(this.permutation[ba], x - 1, y), u),
-            lerp(grad(this.permutation[ab], x, y - 1), grad(this.permutation[bb], x - 1, y - 1), u),
+        return this.lerp(
+            this.lerp(this.grad(this.permutation[aa], x, y), this.grad(this.permutation[ba], x - 1, y), u),
+            this.lerp(this.grad(this.permutation[ab], x, y - 1), this.grad(this.permutation[bb], x - 1, y - 1), u),
             v
         );
     }
