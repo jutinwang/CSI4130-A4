@@ -51,6 +51,7 @@ document.addEventListener("keyup", (event) => {
 /**
  * Loaders
  */ 
+const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const mtlLoader = new MTLLoader();
@@ -171,7 +172,7 @@ createShipExhaust();
 setupControls();
 
 
-const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
+const light = new THREE.AmbientLight(0xffffff, 0.5); // Soft white light
 scene.add(light);
 
 const sunLight = new THREE.DirectionalLight(0xffffff, 20); 
