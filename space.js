@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
@@ -23,12 +24,32 @@ let angle = 0;
 let bones = {};
 let hasExploded = false; // Track explosion state
 
+let mvmtAmt = 0.5;
+let arrowKeys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
+};
+document.addEventListener("keydown", (event) => {
+    if (event.key in arrowKeys) {
+        arrowKeys[event.key] = true;
+    }
+});
+
+document.addEventListener("keyup", (event) => {
+    if (event.key in arrowKeys) {
+        arrowKeys[event.key] = false;
+    }
+});
+
 /**
  * Loaders
  */ 
 const cubeTextureLoader = new THREE.CubeTextureLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
+const mtlLoader = new MTLLoader();
 const textureLoader = new TextureLoader();
 const gltfLoader = new GLTFLoader();
 const floader = new FontLoader();
@@ -46,7 +67,9 @@ let charlie_brown = new THREE.Object3D();
  * Camera
  */
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 500;
+camera.position.x = -290;
+camera.position.y = 15;
+camera.position.z = 25;
 
 /**
  * Renderer
@@ -64,26 +87,31 @@ document.body.appendChild(canvas);
 const pmremGenerator = new PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
 
-class SinwaveCurve extends THREE.Curve { // From the lab
-    constructor(aSpeed = 3, bSpeed = 2, delta = pi / 2, scale = 3) {
+//for defining the path of the scroll
+class StraightLineCurve extends THREE.Curve {
+    constructor(start = new THREE.Vector3(0, 0, 0), end = new THREE.Vector3(10, 5, 0)) {
         super();
-        this.aSpeed = aSpeed; // Lissajous frequency in x
-        this.bSpeed = bSpeed; // Lissajous frequency in y
-        this.delta = delta; // Phase shift
-        this.scale = scale; // Overall scale of movement
+        this.start = start;
+        this.end = end;
+        this.direction = end.clone().sub(start).normalize(); // Compute constant direction
     }
 
     getPoint(t) {
-        let x = t * this.aSpeed * 10;  // Moves forward in X direction
-        let y = this.scale * Math.sin(t * Math.PI * this.bSpeed + this.delta); // Sine wave in Y
-        let z = this.scale * Math.cos(t * Math.PI * this.bSpeed + this.delta);  // Keep Z fixed
-        return new THREE.Vector3(x, y, z).multiplyScalar(this.scale);
+        return this.start.clone().lerp(this.end, t);
+    }
+
+    getTangent(t) {
+        return this.direction.clone(); // Constant tangent along the line
+    }
+
+    moveStart(x,y) {
+        this.start.add(new THREE.Vector3(x,y,0));
+    }
+
+    setStart(start) {
+        this.start = start;
     }
 }
-let sinWavePath = new SinwaveCurve();
-
-let movementTime = 0;
-let movementSpeed = 0.0010; // control swim speed
 
 /**
  * Controls
@@ -92,7 +120,7 @@ const orbit = new OrbitControls( camera, canvas );
 orbit.enableDamping = true;
 orbit.dampingFactor = 0.1;
 orbit.minDistance = 15;
-orbit.maxDistance = 100;
+orbit.maxDistance = 120;
 
 //Setup scene
 const scene = new THREE.Scene();
@@ -137,6 +165,22 @@ objLoader.load(
         });
 
 		scene.add( ship );
+
+        // load turret onto ship
+        // Load the materials
+        mtlLoader.load('./static/models/turret/source/turret.mtl', (materials) => {
+            materials.preload(); // Preload the materials
+            
+            // Load the object
+            objLoader.setMaterials(materials); // Apply the materials to the object
+            objLoader.load('./static/models/turret/source/turret.obj', (turret) => {
+                console.log("Turret loaded:", turret);
+                ship.add(turret);
+                turret.scale.set(0.0029, 0.0029, 0.0029);
+                turret.position.set(0, 2, -1);
+                turret.rotateY(Math.PI/2);
+            });
+        });
 
         //create fire particles for the ships exhaust
         createShipExhaust();
@@ -342,6 +386,12 @@ gltfLoader.load('./static/models/charlie_brown/scene.gltf', function ( gltf ) {
     }
 );
 
+let scrollStartPos = new THREE.Vector3(0,14,0);
+let linePath = new StraightLineCurve(scrollStartPos, new THREE.Vector3(90,11.5,0));
+
+let movementTime = 0;
+let movementSpeed = 0.01; // control swim speed
+
 // Scroll / Newspaper loader
 gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
     scroll = gltf.scene;
@@ -522,14 +572,32 @@ function animateScroll() {
     requestAnimationFrame(animateScroll);
 
     if (animated) { // for animation toggle
+
         movementTime += movementSpeed; // Increase movement along the curve
         let time = movementTime % 1; // Keep time between 0 and 1
-        let position = sinWavePath.getPoint(time);
-        let tangent = sinWavePath.getTangent(time).normalize();
+        let position = linePath.getPoint(time);
+        let tangent = linePath.getTangent(time).normalize();
         if (scroll) {
-            // Offset the curve's position to start at (-50, 0, 0)
-            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); // controls starting position of scroll
-
+            if (arrowKeys.ArrowUp) {
+                console.log("up key press")
+                linePath.moveStart(0, mvmtAmt);
+            }
+            if (arrowKeys.ArrowDown) {
+                console.log("down key press")
+                linePath.moveStart(0, -mvmtAmt);
+            }
+            if (arrowKeys.ArrowLeft) {
+                console.log("left key press")
+                linePath.moveStart(-mvmtAmt, 0);
+            }
+            if (arrowKeys.ArrowRight) {
+                console.log("right key press")
+                linePath.moveStart(mvmtAmt, 0);
+            }
+            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); /
+          
+            scroll.rotateOnAxis(linePath, Math.PI/4)
+          
             let quater = new THREE.Quaternion();
             let flip = new THREE.Quaternion();
 
