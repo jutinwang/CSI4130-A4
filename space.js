@@ -17,6 +17,9 @@ let stars, fire, fire2;
 const clock = new THREE.Clock();
 const pi = Math.PI;
 let animated = true;
+let jumpSpeed = 0.05; // Adjust for faster/slower jumps
+let angle = 0;
+let bones = {};
 
 /**
  * Loaders
@@ -34,6 +37,7 @@ const floader = new FontLoader();
 let home = new THREE.Object3D();
 let sign = new THREE.Object3D();
 let scroll = new THREE.Object3D();
+let charlie_brown = new THREE.Object3D();
 
 
 /**
@@ -275,7 +279,62 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
 	}
 );
 
+// Charlie Brown
+gltfLoader.load('./static/models/charlie_brown/scene.gltf', function ( gltf ) {
+    const brownTexture = textureLoader.load("./static/models/charlie_brown/textures/01_-_Default_baseColor.png");
+  // Enable texture wrapping to prevent stretching
+  brownTexture.wrapS = THREE.RepeatWrapping;
+  brownTexture.wrapT = THREE.RepeatWrapping;
+  brownTexture.flipY = false; // Sometimes GLTF models require this fix
 
+  charlie_brown = gltf.scene;
+
+  charlie_brown.traverse((child) => {
+      if (child.isMesh || child.isSkinnedMesh) {          
+          // Ensure child has a material
+          if (child.material) {
+              // If the mesh has multiple materials, apply texture to all
+              if (Array.isArray(child.material)) {
+                  child.material.forEach((mat) => {
+                      mat.map = brownTexture;
+                      mat.needsUpdate = true;
+                  });
+              } else {
+                  // Single material case
+                  child.material.map = brownTexture;
+                  child.material.needsUpdate = true;
+              }
+          }
+      }
+
+      if (child.isBone) {
+          bones[child.name] = child;
+      }
+  });
+
+    // Adjust model positioning
+    charlie_brown.scale.set(25, 25, 25);
+    charlie_brown.position.set(-6, -0.8, -5);
+    charlie_brown.rotateY(-Math.PI / 1.75);
+    scene.add(charlie_brown);
+
+    if (bones.joint_ShoulderLT_01_048 && bones.joint_ShoulderRT_01_062) {
+        bones.joint_ShoulderLT_01_048.rotation.x = -0.5; // Slightly backward to look natural
+        bones.joint_ShoulderRT_01_062.rotation.x = -0.5;
+    }
+
+    animateJump();
+},
+
+    // called while loading is progressing
+    function ( xhr ) {
+        console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+    },
+    // called when loading has errors
+    function ( error ) {
+        console.log( error);
+    }
+);
 
 // Scroll / Newspaper loader
 gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
@@ -473,12 +532,46 @@ function animateScroll() {
             flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
             scroll.quaternion.multiplyQuaternions(quater, flip);
 
-            if (movementTime >= 1) {
-                createExplosion(scroll.position); // Explosion at final position
-            }
+            // if (movementTime >= 1) {
+            //     createExplosion(scroll.position); // Explosion at final position
+            // }
         }
     }
     render();
+}
+
+function animateJump() {
+    requestAnimationFrame(animateJump);
+
+    angle += jumpSpeed;
+    
+    if (!bones || !charlie_brown) {
+        console.error("Bones not loaded yet!");
+        return;
+    }
+
+    // **Jump Height Calculation**
+    let jumpHeight = Math.sin(angle) * 3; // Moves up/down smoothly
+    charlie_brown.position.y = 1.85 + jumpHeight;
+
+    // **Arms Transition (0 when down, 1 when up)**
+    let peakFactor = (Math.sin(angle) + 1) / 2; // Maps -1 to 1 → 0 to 1
+
+    let armRaise = peakFactor * 1;  // Arms fully raised at 1
+    let legSpread = peakFactor * 1; // Legs fully apart at 1
+
+    // **Apply animation to limbs**
+    if (bones.joint_KneeLT_01_076 && bones.joint_KneeRT_01_081) {
+        bones.joint_KneeLT_01_076.rotation.x = legSpread;
+        bones.joint_KneeRT_01_081.rotation.x = legSpread;
+    }
+
+    if (bones.joint_ShoulderLT_01_048 && bones.joint_ShoulderRT_01_062) {
+        bones.joint_ShoulderLT_01_048.rotation.x = armRaise;
+        bones.joint_ShoulderRT_01_062.rotation.x = armRaise;
+    }
+
+    renderer.render(scene, camera);
 }
 
 /**
