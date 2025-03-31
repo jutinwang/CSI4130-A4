@@ -18,6 +18,7 @@ let animated = true;
 let jumpSpeed = 0.05; // Adjust for faster/slower jumps
 let angle = 0;
 let bones = {};
+let hasExploded = false; // Track explosion state
 
 /**
  * Loaders
@@ -401,58 +402,58 @@ function animate() {
 }
 animate();
 
-// function createExplosion(position) {
-//     const particleCount = 100;
-//     const particlesGeometry = new THREE.BufferGeometry();
-//     const positions = new Float32Array(particleCount * 3);
-//     const velocities = [];
+function createExplosion(position) {
+    const particleCount = 100;
+    const particlesGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const velocities = [];
 
-//     for (let i = 0; i < particleCount; i++) {
-//         positions[i * 3] = position.x;
-//         positions[i * 3 + 1] = position.y;
-//         positions[i * 3 + 2] = position.z;
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = position.x;
+        positions[i * 3 + 1] = position.y;
+        positions[i * 3 + 2] = position.z;
 
-//         // Random velocity for explosion effect
-//         velocities.push(
-//             (Math.random() - 0.5) * 5, // X velocity
-//             (Math.random() - 0.5) * 5, // Y velocity
-//             (Math.random() - 0.5) * 5  // Z velocity
-//         );
-//     }
+        // Random velocity for explosion effect
+        velocities.push(
+            (Math.random() - 0.5) * 5, // X velocity
+            (Math.random() - 0.5) * 5, // Y velocity
+            (Math.random() - 0.5) * 5  // Z velocity
+        );
+    }
 
-//     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-//     const particlesMaterial = new THREE.PointsMaterial({
-//         color: 0xffd700, // Gold color for explosion
-//         size: 2,
-//         transparent: true,
-//         opacity: 1,
-//     });
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particlesMaterial = new THREE.PointsMaterial({
+        color: 0xffd700, // Gold color for explosion
+        size: 2,
+        transparent: true,
+        opacity: 1,
+    });
 
-//     const explosionParticles = new THREE.Points(particlesGeometry, particlesMaterial);
-//     scene.add(explosionParticles);
+    const explosionParticles = new THREE.Points(particlesGeometry, particlesMaterial);
+    scene.add(explosionParticles);
 
-//     // Animate explosion (particles spreading out)
-//     let explosionTime = 0;
-//     function animateExplosion() {
-//         if (explosionTime > 1) {
-//             scene.remove(explosionParticles); // Remove explosion after effect
-//             return;
-//         }
+    // Animate explosion (particles spreading out)
+    let explosionTime = 0;
+    function animateExplosion() {
+        if (explosionTime > 1) {
+            scene.remove(explosionParticles); // Remove explosion after effect
+            return;
+        }
 
-//         explosionTime += 0.02;
+        explosionTime += 0.02;
 
-//         const positionsArray = particlesGeometry.attributes.position.array;
-//         for (let i = 0; i < particleCount; i++) {
-//             positionsArray[i * 3] += velocities[i * 3] * 0.5;
-//             positionsArray[i * 3 + 1] += velocities[i * 3 + 1] * 0.5;
-//             positionsArray[i * 3 + 2] += velocities[i * 3 + 2] * 0.5;
-//         }
-//         particlesGeometry.attributes.position.needsUpdate = true;
+        const positionsArray = particlesGeometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+            positionsArray[i * 3] += velocities[i * 3] * 0.5;
+            positionsArray[i * 3 + 1] += velocities[i * 3 + 1] * 0.5;
+            positionsArray[i * 3 + 2] += velocities[i * 3 + 2] * 0.5;
+        }
+        particlesGeometry.attributes.position.needsUpdate = true;
 
-//         requestAnimationFrame(animateExplosion);
-//     }
-//     animateExplosion();
-// }
+        requestAnimationFrame(animateExplosion);
+    }
+    animateExplosion();
+}
 
 function animateScroll() {
     requestAnimationFrame(animateScroll);
@@ -462,25 +463,33 @@ function animateScroll() {
         let time = movementTime % 1; // Keep time between 0 and 1
         let position = sinWavePath.getPoint(time);
         let tangent = sinWavePath.getTangent(time).normalize();
-
         if (scroll) {
             // Offset the curve's position to start at (-50, 0, 0)
             scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); // controls starting position of scroll
-    
+
             let quater = new THREE.Quaternion();
             let flip = new THREE.Quaternion();
 
             quater.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent);
             flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
             scroll.quaternion.multiplyQuaternions(quater, flip);
+            
+            // Trigger explosion **only once** when reaching the end
+            if (time > 0.99 && !hasExploded) { 
+                let explosionPosition = scroll.position.clone(); // Capture position BEFORE reset
+                createExplosion(explosionPosition); // Use captured position
+                hasExploded = true; // Mark explosion as triggered
+            }
 
-            // if (movementTime >= 1) {
-            //     createExplosion(scroll.position); // Explosion at final position
-            // }
+            // Reset explosion flag when movement starts over
+            if (time < movementSpeed) {
+                hasExploded = false;
+            }
         }
     }
     render();
 }
+
 
 function animateJump() {
     requestAnimationFrame(animateJump);
