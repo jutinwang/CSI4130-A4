@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
@@ -27,6 +28,7 @@ let bones = {};
 const cubeTextureLoader = new THREE.CubeTextureLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
+const mtlLoader = new MTLLoader();
 const textureLoader = new TextureLoader();
 const gltfLoader = new GLTFLoader();
 const floader = new FontLoader();
@@ -44,7 +46,9 @@ let charlie_brown = new THREE.Object3D();
  * Camera
  */
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 500;
+camera.position.x = -290;
+camera.position.y = 15;
+camera.position.z = 25;
 
 /**
  * Renderer
@@ -90,7 +94,7 @@ const orbit = new OrbitControls( camera, canvas );
 orbit.enableDamping = true;
 orbit.dampingFactor = 0.1;
 orbit.minDistance = 15;
-orbit.maxDistance = 100;
+orbit.maxDistance = 120;
 
 //Setup scene
 const scene = new THREE.Scene();
@@ -131,6 +135,22 @@ objLoader.load(
         });
 
 		scene.add( ship );
+
+        // load turret onto ship
+        // Load the materials
+        mtlLoader.load('./static/models/turret/source/turret.mtl', (materials) => {
+            materials.preload(); // Preload the materials
+            
+            // Load the object
+            objLoader.setMaterials(materials); // Apply the materials to the object
+            objLoader.load('./static/models/turret/source/turret.obj', (turret) => {
+                console.log("Turret loaded:", turret);
+                ship.add(turret);
+                turret.scale.set(0.0029, 0.0029, 0.0029);
+                turret.position.set(0, 2, -1);
+                turret.rotateY(Math.PI/2);
+            });
+        });
 
         //create fire particles for the ships exhaust
         createShipExhaust();
