@@ -413,9 +413,9 @@ function animateScroll() {
             flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
             scroll.quaternion.multiplyQuaternions(quater, flip);
 
-            // if (movementTime % 1 == 0) {
-            //     createExplosion(scroll.position); // Explosion at final position
-            // }
+            if (movementTime >= 1) {
+                createExplosion(scroll.position); // Explosion at final position
+            }
         }
     }
     render();
