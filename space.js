@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { TextureLoader } from 'three';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
@@ -9,13 +10,16 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from "dat.gui";
-import FireParticle from "./fire-particle.js";
 import { mx_bilerp_0 } from "three/src/nodes/materialx/lib/mx_noise.js";
+import FireParticle from "./fire-particle.js";
+import Perlin from './perlin.js';
 
 /**
  * Global variables
  */
-let stars, fire, fire2, scrollFire;
+
+let stars, fire, fire2, asteroidGroup, scrollFire;
+let asteroid = new THREE.Object3D;
 let gui, controls;
 const clock = new THREE.Clock();
 const pi = Math.PI;
@@ -48,7 +52,7 @@ document.addEventListener("keyup", (event) => {
 /**
  * Loaders
  */ 
-const cubeTextureLoader = new THREE.CubeTextureLoader();
+const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const mtlLoader = new MTLLoader();
@@ -134,11 +138,37 @@ setupEnvMap();
 // Create starfield
 createStarticles(3000);
 
+//create fire effect
+createShipExhaust();
+
+//create the sun
+const perlin = new Perlin();
+
+let textureSize = 1024;
+let noiseScale = 10;
+
+//make the texture size **3 times 3 for vec3's
+let textureData = new Uint8Array(textureSize * textureSize * 4);
+let texture = new THREE.DataTexture(textureData, textureSize, textureSize, THREE.RGBAFormat);
+texture.needsUpdate = true;
+
+let sunShade = new THREE.Color(0xde3009);
+let sunShade2 = new THREE.Color(0xfae04b);
+
+let sunGeometry = new THREE.SphereGeometry(20, 64, 64);
+let sunMaterial = new THREE.MeshStandardMaterial({ map: texture});
+let sphere = new THREE.Mesh(sunGeometry, sunMaterial);
+scene.add(sphere);
+
+//generate the asteroid belt
+generateAsteroids(200, 100, 15, 5, 10);
+
 //create fire particles for the ships exhaust
 createShipExhaust();
 
 //create controls
 setupControls();
+
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -186,7 +216,7 @@ objLoader.load(
         });
 
         //create fire particles for the ships exhaust
-        createShipExhaust();
+        
 
         ship.add(fire.getMesh());
         ship.add(fire2.getMesh());
@@ -208,6 +238,7 @@ objLoader.load(
 var faceMaterial_planet = new THREE.MeshBasicMaterial({ map: textureLoader.load("./static/models/planet/textures/planet_continental_Base_Color.jpg") });
 var sphereGeometry_planet = new THREE.SphereGeometry(35, 32, 32);
 var planet = new THREE.Mesh(sphereGeometry_planet, faceMaterial_planet);
+
 planet.position.set(0, -35, 0);
 scene.add(planet);
 
@@ -490,6 +521,98 @@ function setupEnvMap() {
 
 }
 
+function updateSunTexture(elapsedTime) {
+    for (let y = 0; y < textureSize; y++) {
+        for (let x = 0; x < textureSize; x++) {
+
+            
+            let t = perlin.generateNoise(x / noiseScale + elapsedTime, y / noiseScale + elapsedTime);
+
+            //normalize to the range 0,1
+            t = (t + 1) / 2;
+
+            // interpolate between the sun colours
+            let interpColour = new THREE.Color().lerpColors(sunShade, sunShade2, t);
+
+            let index = (y * textureSize + x) * 4;
+            textureData[index] = interpColour.r * 255;
+            textureData[index + 1] = interpColour.g * 255;
+            textureData[index + 2] = interpColour.b * 255;
+            texture[index + 3] = 255;
+        }
+    }
+
+    texture.needsUpdate = true;
+}
+
+function generateAsteroids(numAsteroids, radius, variationX, variationY, variationZ) {
+
+    gltfLoader.load('./static/models/asteroid/scene.gltf', function ( gltf ) {
+        const asteroidTexture = textureLoader.load("./static/models/asteroid/textures/material_0_baseColor.png");
+        const asteroidTexture2 = textureLoader.load("./static/models/asteroid/textures/material_0_metallicRoughness.png");
+        const asteroidTexture3 = textureLoader.load("./static/models/asteroid/textures/material_0_normal.png");
+
+        asteroidTexture.flipY = false;
+        
+        asteroidTexture2.flipY = false;
+        
+        asteroidTexture3.flipY = false;
+        asteroid = gltf.scene;
+        asteroid.traverse((child) => {
+            if (child.isMesh) {
+                console.log(child.name);
+                
+                //apply materials to the mesh
+                let material = new THREE.MeshStandardMaterial({
+                    map: asteroidTexture,             
+                    metalnessMap: asteroidTexture2,   
+                    normalMap: asteroidTexture3,      
+                    //roughness: 0.5,                   
+                    //metalness: 0.5,                   
+                });
+    
+                //assign material to child mesh
+                child.material = material;
+            }
+    
+        });
+
+        asteroidGroup = new THREE.Group();
+        scene.add(asteroidGroup);
+        for (let i = 0; i < numAsteroids; i++) {
+
+            //random angle in the circle
+            const angle = Math.random() * Math.PI * 2;
+    
+            //get random perlin noise values for the x, y, z coordinates
+            const noiseX = perlin.generateNoise(i / 10, 0) * variationX;
+            const noiseY = perlin.generateNoise(i / 10, 1) * variationY;
+            const noiseZ = perlin.generateNoise(i / 10, 2) * variationZ;
+            
+            //convert polar coordinates to Cartesian
+            const x = (radius + noiseX) * Math.cos(angle);
+            const y = noiseY;
+            const z = (radius + noiseZ) * Math.sin(angle);
+
+            let newAst = asteroid.clone();
+            newAst.position.set(x, y, z);
+            asteroidGroup.add(newAst);
+
+        }
+
+	},
+	// called while loading is progressing
+	function ( xhr ) {
+		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+	},
+	// called when loading has errors
+	function ( error ) {
+		console.log( error);
+	});
+
+    
+}
+
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
@@ -499,10 +622,15 @@ function animate() {
     //update the particle emitters with elapsed time
     fire.update(delta);
     fire2.update(delta);
+    //fire3.update(delta);
     scrollFire.update(delta);
+    updateSunTexture(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
+
+    //rotate asteroids
+    asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
 
     //update the orbit controls in animation loop to improve framerate
     orbit.update();
