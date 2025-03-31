@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { TextureLoader } from 'three';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
@@ -27,6 +29,7 @@ const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const textureLoader = new TextureLoader();
 const gltfLoader = new GLTFLoader();
+const floader = new FontLoader();
 
 /**
  * Model Loaders
@@ -209,6 +212,61 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
         sign.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
         sign.rotateY(-Math.PI/1.55)
         scene.add(sign);
+
+        // Adding text to sign
+        floader.load('./static/models/fonts/helvetiker_bold.typeface.json',function(font){
+            var geometry = new TextGeometry( 'M A I L   T I M E   !   !', {
+                font: font,
+                size: 0.75,
+                depth:0.025,
+                curveSegments: 12,
+                bevelEnabled: false,
+                bevelThickness: 0.05,
+                bevelSize: 0.1,
+                bevelSegments: 0.1
+            } );
+            var txt_mat = new THREE.MeshPhongMaterial({color:0xe33020});
+            var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+            txt_mesh.scale.set(0.1,0.1);
+            txt_mesh.position.set(-0.48, 0.37 ,0.1);
+            sign.add(txt_mesh);
+        } );
+        
+        // Adding text to sign
+        floader.load('./static/models/fonts/helvetiker_regular.typeface.json',function(font){
+            var geometry = new TextGeometry('Charlie Brown wants his mail!', {
+                font: font,
+                size: 0.35,
+                depth:0.025,
+                curveSegments: 12,
+                bevelEnabled: false,
+                bevelThickness: 0.05,
+                bevelSize: 0.1,
+                bevelSegments: 0.1
+            } );
+            var txt_mat = new THREE.MeshPhongMaterial({color:0x000000});
+            var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+            txt_mesh.scale.set(0.1,0.1);
+            txt_mesh.position.set(-0.32, 0.27 ,0.1);
+            sign.add(txt_mesh);
+
+            var geometry = new TextGeometry('Justin Wang, Tom Latimer, Timothy Mao', {
+                font: font,
+                size: 0.35,
+                depth:0.025,
+                curveSegments: 12,
+                bevelEnabled: false,
+                bevelThickness: 0.05,
+                bevelSize: 0.1,
+                bevelSegments: 0.1
+            } );
+            var txt_mat = new THREE.MeshPhongMaterial({color:0x000000});
+            var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+            txt_mesh.scale.set(0.1,0.1);
+            txt_mesh.position.set(-0.42, 0.17 ,0.1);
+            sign.add(txt_mesh);
+            
+        } );
 
 	},
 	// called while loading is progressing
