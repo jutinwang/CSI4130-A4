@@ -320,14 +320,9 @@ gltfLoader.load('./static/models/charlie_brown/scene.gltf', function ( gltf ) {
 
     // Adjust model positioning
     charlie_brown.scale.set(25, 25, 25);
-    charlie_brown.position.set(-6, -0.8, -5);
+    charlie_brown.position.set(-6, 0, -5);
     charlie_brown.rotateY(-Math.PI / 1.75);
     scene.add(charlie_brown);
-
-    if (bones.joint_ShoulderLT_01_048 && bones.joint_ShoulderRT_01_062) {
-        bones.joint_ShoulderLT_01_048.rotation.x = -0.5; // Slightly backward to look natural
-        bones.joint_ShoulderRT_01_062.rotation.x = -0.5;
-    }
 
     animateJump();
 },
@@ -566,7 +561,7 @@ function animateJump() {
 
     // **Jump Height Calculation**
     let jumpHeight = Math.sin(angle) * 3; // Moves up/down smoothly
-    charlie_brown.position.y = 1.85 + jumpHeight;
+    charlie_brown.position.y = 1.95 + jumpHeight;
 
     // **Arms Transition (0 when down, 1 when up)**
     let peakFactor = (Math.sin(angle) + 1) / 2; // Maps -1 to 1 → 0 to 1
