@@ -575,22 +575,22 @@ function animateScroll() {
         let tangent = linePath.getTangent(time).normalize();
         if (scroll) {
             if (arrowKeys.ArrowUp) {
-                console.log("up key press")
+                //console.log("up key press")
                 linePath.moveStart(0, mvmtAmt);
                 tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowDown) {
-                console.log("down key press")
+                //console.log("down key press")
                 linePath.moveStart(0, -mvmtAmt);
                 tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowLeft) {
-                console.log("left key press")
+                //console.log("left key press")
                 linePath.moveStart(-mvmtAmt, 0);
                 tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowRight) {
-                console.log("right key press")
+                //console.log("right key press")
                 linePath.moveStart(mvmtAmt, 0);
                 tangent = linePath.getTangent(time).normalize();
             }
