@@ -8,7 +8,6 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from "dat.gui";
 import { mx_bilerp_0 } from "three/src/nodes/materialx/lib/mx_noise.js";
 import FireParticle from "./fire-particle.js";
@@ -57,7 +56,6 @@ const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const mtlLoader = new MTLLoader();
 const textureLoader = new TextureLoader();
-const gltfLoader = new GLTFLoader();
 const floader = new FontLoader();
 
 /**
