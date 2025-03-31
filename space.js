@@ -13,6 +13,8 @@ import FireParticle from "./fire-particle.js";
  */
 let stars, fire, fire2;
 const clock = new THREE.Clock();
+const pi = Math.PI;
+let animated = true;
 
 /**
  * Loaders
@@ -22,6 +24,13 @@ const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const textureLoader = new TextureLoader();
 const gltfLoader = new GLTFLoader();
+
+/**
+ * Model Loaders
+ */
+let home = new THREE.Object3D();
+let sign = new THREE.Object3D();
+let scroll = new THREE.Object3D();
 
 
 /**
@@ -46,6 +55,26 @@ document.body.appendChild(canvas);
 const pmremGenerator = new PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
 
+class SinwaveCurve extends THREE.Curve { // From the lab
+    constructor(aSpeed = 3, bSpeed = 2, delta = pi / 2, scale = 3) {
+        super();
+        this.aSpeed = aSpeed; // Lissajous frequency in x
+        this.bSpeed = bSpeed; // Lissajous frequency in y
+        this.delta = delta; // Phase shift
+        this.scale = scale; // Overall scale of movement
+    }
+
+    getPoint(t) {
+        let x = t * this.aSpeed * 10;  // Moves forward in X direction
+        let y = this.scale * Math.sin(t * Math.PI * this.bSpeed + this.delta); // Sine wave in Y
+        let z = this.scale * Math.cos(t * Math.PI * this.bSpeed + this.delta);  // Keep Z fixed
+        return new THREE.Vector3(x, y, z).multiplyScalar(this.scale);
+    }
+}
+let sinWavePath = new SinwaveCurve();
+
+let movementTime = 0;
+let movementSpeed = 0.0010; // control swim speed
 
 /**
  * Controls
@@ -66,7 +95,6 @@ setupEnvMap();
 createStarticles(3000);
 
 //create fire effect
-
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -102,7 +130,7 @@ objLoader.load(
 
         ship.add(fire.getMesh());
         ship.add(fire2.getMesh());
-        ship.position.set(-50, 0,0);
+        ship.position.set(-100, 0,0);
         //ship.scale.set(30,30,30);
         ship.rotateY(Math.PI/2);
 	},
@@ -124,8 +152,7 @@ planet.position.set(0, -35, 0);
 scene.add(planet);
 
 
-let home = new THREE.Object3D();
-// Load a glTF resource
+// Load home
 gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
         const homeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_0.png");
         const extraHomeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_1.png");
@@ -159,8 +186,7 @@ gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
 	}
 );
 
-let sign = new THREE.Object3D();
-// Load a glTF resource
+// Wooden Sign
 gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
         const signTexture = textureLoader.load("./static/models/wooden_sign/textures/lambert1_baseColor.jpeg");
         sign = gltf.scene;
@@ -189,6 +215,27 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
 	function ( error ) {
 		console.log( error);
 	}
+);
+
+// Scroll / Newspaper loader
+gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
+    scroll = gltf.scene;
+    
+    scroll.scale.set(3, 3, 3);
+    scroll.rotateY(-Math.PI/1.55)
+    scene.add(scroll);
+
+    animateScroll();
+
+},
+// called while loading is progressing
+function ( xhr ) {
+    console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+},
+// called when loading has errors
+function ( error ) {
+    console.log( error);
+}
 );
 
 // Create the starfield
@@ -291,8 +338,88 @@ function animate() {
 
     render();
 }
-
 animate();
+
+// function createExplosion(position) {
+//     const particleCount = 100;
+//     const particlesGeometry = new THREE.BufferGeometry();
+//     const positions = new Float32Array(particleCount * 3);
+//     const velocities = [];
+
+//     for (let i = 0; i < particleCount; i++) {
+//         positions[i * 3] = position.x;
+//         positions[i * 3 + 1] = position.y;
+//         positions[i * 3 + 2] = position.z;
+
+//         // Random velocity for explosion effect
+//         velocities.push(
+//             (Math.random() - 0.5) * 5, // X velocity
+//             (Math.random() - 0.5) * 5, // Y velocity
+//             (Math.random() - 0.5) * 5  // Z velocity
+//         );
+//     }
+
+//     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+//     const particlesMaterial = new THREE.PointsMaterial({
+//         color: 0xffd700, // Gold color for explosion
+//         size: 2,
+//         transparent: true,
+//         opacity: 1,
+//     });
+
+//     const explosionParticles = new THREE.Points(particlesGeometry, particlesMaterial);
+//     scene.add(explosionParticles);
+
+//     // Animate explosion (particles spreading out)
+//     let explosionTime = 0;
+//     function animateExplosion() {
+//         if (explosionTime > 1) {
+//             scene.remove(explosionParticles); // Remove explosion after effect
+//             return;
+//         }
+
+//         explosionTime += 0.02;
+
+//         const positionsArray = particlesGeometry.attributes.position.array;
+//         for (let i = 0; i < particleCount; i++) {
+//             positionsArray[i * 3] += velocities[i * 3] * 0.5;
+//             positionsArray[i * 3 + 1] += velocities[i * 3 + 1] * 0.5;
+//             positionsArray[i * 3 + 2] += velocities[i * 3 + 2] * 0.5;
+//         }
+//         particlesGeometry.attributes.position.needsUpdate = true;
+
+//         requestAnimationFrame(animateExplosion);
+//     }
+//     animateExplosion();
+// }
+
+function animateScroll() {
+    requestAnimationFrame(animateScroll);
+
+    if (animated) { // for animation toggle
+        movementTime += movementSpeed; // Increase movement along the curve
+        let time = movementTime % 1; // Keep time between 0 and 1
+        let position = sinWavePath.getPoint(time);
+        let tangent = sinWavePath.getTangent(time).normalize();
+
+        if (scroll) {
+            // Offset the curve's position to start at (-50, 0, 0)
+            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); // controls starting position of scroll
+    
+            let quater = new THREE.Quaternion();
+            let flip = new THREE.Quaternion();
+
+            quater.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent);
+            flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+            scroll.quaternion.multiplyQuaternions(quater, flip);
+
+            if (movementTime >= 1) {
+                createExplosion(scroll.position); // Explosion at final position
+            }
+        }
+    }
+    render();
+}
 
 /**
  * Event Listeners
