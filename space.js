@@ -51,7 +51,6 @@ document.addEventListener("keyup", (event) => {
 /**
  * Loaders
  */ 
-const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const mtlLoader = new MTLLoader();
@@ -153,13 +152,17 @@ texture.needsUpdate = true;
 let sunShade = new THREE.Color(0xde3009);
 let sunShade2 = new THREE.Color(0xfae04b);
 
-let sunGeometry = new THREE.SphereGeometry(20, 64, 64);
-let sunMaterial = new THREE.MeshStandardMaterial({ map: texture});
-let sphere = new THREE.Mesh(sunGeometry, sunMaterial);
-scene.add(sphere);
+let sunGeometry = new THREE.SphereGeometry(200, 64, 64);
+let sunMaterial = new THREE.MeshStandardMaterial({ 
+    map: texture
+});
+let sun = new THREE.Mesh(sunGeometry, sunMaterial);
+
+sun.position.set(500, 100, -500);
+scene.add(sun);
 
 //generate the asteroid belt
-generateAsteroids(200, 100, 15, 5, 10);
+generateAsteroids(200, 150, 15, 5, 10);
 
 //create fire particles for the ships exhaust
 createShipExhaust();
@@ -170,6 +173,11 @@ setupControls();
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 20); 
+sunLight.position.set(500, 100, -500);  
+sunLight.target.position.set(0, 0, 0);
+scene.add(sunLight);
 
 // load ship
 objLoader.load(
@@ -524,7 +532,7 @@ function updateSunTexture(elapsedTime) {
         for (let x = 0; x < textureSize; x++) {
 
             
-            let t = perlin.generateNoise(x / noiseScale + elapsedTime, y / noiseScale + elapsedTime);
+            let t = perlin.generateNoise((x / noiseScale) + (elapsedTime * 0.5), (y / noiseScale) + (elapsedTime * 0.5));
 
             //normalize to the range 0,1
             t = (t + 1) / 2;
@@ -621,14 +629,20 @@ function animate() {
     fire.update(delta);
     fire2.update(delta);
     //fire3.update(delta);
-    scrollFire.update(delta);
+
+    if ( scrollFire != undefined) {
+        scrollFire.update(delta);
+    }
+    
     updateSunTexture(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
 
     //rotate asteroids
-    asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
+    if (asteroidGroup != undefined) {
+        asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
+    }
 
     //update the orbit controls in animation loop to improve framerate
     orbit.update();
