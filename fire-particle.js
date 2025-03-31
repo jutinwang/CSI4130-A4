@@ -49,6 +49,26 @@ export default class FireParticle {
         this.direction = newDir.normalize();
     }
 
+    setScale(scale) {
+        this.mesh.scale.set(scale, scale, scale);
+    }
+
+    setLength(length) {
+        this.length = length;
+    }
+
+    setRadius(radius) {
+        this.radius = radius;
+    }
+
+    setRate(rate) {
+        this.rate = rate;
+    }
+
+    setSpeed(speed) {
+        this.speed = speed;
+    }
+
     getMesh() {
         return this.mesh;
     }
