@@ -10,11 +10,12 @@ import { PMREMGenerator } from "three";
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GUI } from "dat.gui";
 import FireParticle from "./fire-particle.js";
+import { mx_bilerp_0 } from "three/src/nodes/materialx/lib/mx_noise.js";
 
 /**
  * Global variables
  */
-let stars, fire, fire2;
+let stars, fire, fire2, scrollFire;
 let gui, controls;
 const clock = new THREE.Clock();
 const pi = Math.PI;
@@ -24,7 +25,8 @@ let angle = 0;
 let bones = {};
 let hasExploded = false; // Track explosion state
 
-let mvmtAmt = 0.5;
+const scrollStartPos = new THREE.Vector3(7,14,0);
+let mvmtAmt = 0.8;
 let arrowKeys = {
     ArrowUp: false,
     ArrowDown: false,
@@ -101,11 +103,12 @@ class StraightLineCurve extends THREE.Curve {
     }
 
     getTangent(t) {
+        this.direction = this.end.clone().sub(this.start).normalize(); // Compute constant direction
         return this.direction.clone(); // Constant tangent along the line
     }
 
     moveStart(x,y) {
-        this.start.add(new THREE.Vector3(x,y,0));
+        this.start.add(new THREE.Vector3(0,y,x));
     }
 
     setStart(start) {
@@ -385,8 +388,6 @@ gltfLoader.load('./static/models/charlie_brown/scene.gltf', function ( gltf ) {
         console.log( error);
     }
 );
-
-let scrollStartPos = new THREE.Vector3(0,14,0);
 let linePath = new StraightLineCurve(scrollStartPos, new THREE.Vector3(90,11.5,0));
 
 let movementTime = 0;
@@ -399,6 +400,17 @@ gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
     scroll.scale.set(3, 3, 3);
     scroll.rotateY(-Math.PI/1.55)
     scene.add(scroll);
+    
+    scrollFire = new FireParticle({
+        source: new THREE.Vector3(-1.8, 0.25, 0),
+        direction: new THREE.Vector3(-1, 0, 0).normalize(), 
+        scale: new THREE.Vector3(0.25, 0.25, 0.25),
+        length: 7, 
+        radius: 2.5, 
+        rate: 70, 
+        speed: 15
+    });
+    scroll.add(scrollFire.getMesh());
 
     animateScroll();
 
@@ -450,17 +462,6 @@ function createShipExhaust() {
         rate: 15, 
         speed: 5
     });
-    
-    // let fire3 = new FireParticle({
-    //     source: new THREE.Vector3(0, 0, 0),
-    //     direction: new THREE.Vector3(0, 1, 0).normalize(), 
-    //     scale: new THREE.Vector3(1, 1, 1),
-    //     length: 50, 
-    //     radius: 2.5, 
-    //     rate: 70, 
-    //     speed: 15
-    // });
-    // scene.add(fire3.getMesh());
 }
 
 function setupEnvMap() {
@@ -503,7 +504,7 @@ function animate() {
     //update the particle emitters with elapsed time
     fire.update(delta);
     fire2.update(delta);
-    //fire3.update(delta);
+    scrollFire.update(delta);
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
@@ -581,32 +582,34 @@ function animateScroll() {
             if (arrowKeys.ArrowUp) {
                 console.log("up key press")
                 linePath.moveStart(0, mvmtAmt);
+                tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowDown) {
                 console.log("down key press")
                 linePath.moveStart(0, -mvmtAmt);
+                tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowLeft) {
                 console.log("left key press")
                 linePath.moveStart(-mvmtAmt, 0);
+                tangent = linePath.getTangent(time).normalize();
             }
             if (arrowKeys.ArrowRight) {
                 console.log("right key press")
                 linePath.moveStart(mvmtAmt, 0);
+                tangent = linePath.getTangent(time).normalize();
             }
-            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z); /
+            scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z);
           
             scroll.rotateOnAxis(linePath, Math.PI/4)
           
-            let quater = new THREE.Quaternion();
-            let flip = new THREE.Quaternion();
-
-            quater.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent);
-            flip.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
-            scroll.quaternion.multiplyQuaternions(quater, flip);
+            let quaternion = new THREE.Quaternion();
+            quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent); // Align scroll forward to tangent
+            scroll.quaternion.copy(quaternion);
             
             // Trigger explosion **only once** when reaching the end
             if (time > 0.99 && !hasExploded) { 
+                linePath.setStart(new THREE.Vector3(7,14,0));
                 let explosionPosition = scroll.position.clone(); // Capture position BEFORE reset
                 createExplosion(explosionPosition); // Use captured position
                 hasExploded = true; // Mark explosion as triggered
