@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { TextureLoader } from 'three';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -11,13 +12,14 @@ import Perlin from './perlin.js';
 /**
  * Global variables
  */
-let stars, fire, fire2;
+let stars, fire, fire2, asteroidGroup;
+let asteroid = new THREE.Object3D;
 const clock = new THREE.Clock();
 
 /**
  * Loaders
  */ 
-const cubeTextureLoader = new THREE.CubeTextureLoader();
+const gltfLoader = new GLTFLoader();
 const rgbeLoader = new RGBELoader();
 const objLoader = new OBJLoader();
 const textureLoader = new TextureLoader();
@@ -85,6 +87,9 @@ let sunGeometry = new THREE.SphereGeometry(20, 64, 64);
 let sunMaterial = new THREE.MeshStandardMaterial({ map: texture});
 let sphere = new THREE.Mesh(sunGeometry, sunMaterial);
 scene.add(sphere);
+
+//generate the asteroid belt
+generateAsteroids(200, 100, 15, 5, 10);
 
 const light = new THREE.AmbientLight(0xffffff, 2); // Soft white light
 scene.add(light);
@@ -245,6 +250,73 @@ function updateSunTexture(elapsedTime) {
     texture.needsUpdate = true;
 }
 
+function generateAsteroids(numAsteroids, radius, variationX, variationY, variationZ) {
+
+    gltfLoader.load('./static/models/asteroid/scene.gltf', function ( gltf ) {
+        const asteroidTexture = textureLoader.load("./static/models/asteroid/textures/material_0_baseColor.png");
+        const asteroidTexture2 = textureLoader.load("./static/models/asteroid/textures/material_0_metallicRoughness.png");
+        const asteroidTexture3 = textureLoader.load("./static/models/asteroid/textures/material_0_normal.png");
+
+        asteroidTexture.flipY = false;
+        
+        asteroidTexture2.flipY = false;
+        
+        asteroidTexture3.flipY = false;
+        asteroid = gltf.scene;
+        asteroid.traverse((child) => {
+            if (child.isMesh) {
+                console.log(child.name);
+                
+                //apply materials to the mesh
+                let material = new THREE.MeshStandardMaterial({
+                    map: asteroidTexture,             
+                    metalnessMap: asteroidTexture2,   
+                    normalMap: asteroidTexture3,      
+                    //roughness: 0.5,                   
+                    //metalness: 0.5,                   
+                });
+    
+                //assign material to child mesh
+                child.material = material;
+            }
+    
+        });
+
+        asteroidGroup = new THREE.Group();
+        scene.add(asteroidGroup);
+        for (let i = 0; i < numAsteroids; i++) {
+
+            //random angle in the circle
+            const angle = Math.random() * Math.PI * 2;
+    
+            //get random perlin noise values for the x, y, z coordinates
+            const noiseX = perlin.generateNoise(i / 10, 0) * variationX;
+            const noiseY = perlin.generateNoise(i / 10, 1) * variationY;
+            const noiseZ = perlin.generateNoise(i / 10, 2) * variationZ;
+            
+            //convert polar coordinates to Cartesian
+            const x = (radius + noiseX) * Math.cos(angle);
+            const y = noiseY;
+            const z = (radius + noiseZ) * Math.sin(angle);
+
+            let newAst = asteroid.clone();
+            newAst.position.set(x, y, z);
+            asteroidGroup.add(newAst);
+
+        }
+
+	},
+	// called while loading is progressing
+	function ( xhr ) {
+		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+	},
+	// called when loading has errors
+	function ( error ) {
+		console.log( error);
+	});
+
+    
+}
 
 // Animation loop
 function animate() {
@@ -260,6 +332,9 @@ function animate() {
     
     // Slight rotation for a twinkling effect
     stars.rotation.y += 0.0005;
+
+    //rotate asteroids
+    asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
 
     //update the orbit controls in animation loop to improve framerate
     orbit.update();
