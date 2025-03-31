@@ -103,9 +103,6 @@ setupEnvMap();
 // Create starfield
 createStarticles(3000);
 
-// load ship
-createShip();
-
 //create fire particles for the ships exhaust
 createShipExhaust();
 
@@ -383,49 +380,6 @@ function createStarticles(starsCount) {
     scene.add(stars);
 }
 
-function createShip() {
-    objLoader.load(
-
-        // resource URL
-        './static/models/ship/Ship.obj',
-        // called when resource is loaded
-        function ( ship ) {
-            const shipTexture = textureLoader.load("./static/models/ship/textures/Albedo_Ship.png");
-            const engineTexture = textureLoader.load("./static/models/ship/textures/Albedo_Engine.png");
-            ship.traverse((child) => {
-                console.log(child.name); // Check names in console
-                if (child.isMesh) {
-                    // Assign materials based on object name
-                    if (child.name.includes("Engine")) {
-                        child.material = new THREE.MeshStandardMaterial({ map: engineTexture });
-                    } else if (child.name.includes("Vehicle")) {
-                        child.material = new THREE.MeshStandardMaterial({ map: shipTexture });
-                    } else {
-                        child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
-                    }
-                }
-        
-            });
-    
-            scene.add( ship );
-    
-            ship.add(fire.getMesh());
-            ship.add(fire2.getMesh());
-            ship.position.set(-50, 0,0);
-            //ship.scale.set(30,30,30);
-            ship.rotateY(Math.PI/2);
-        },
-        // called when loading is in progress
-        function ( xhr ) {
-            console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-        },
-        // called when loading has errors
-        function ( error ) {
-            console.log( 'An error happened' );
-        }
-    );
-}
-
 function createShipExhaust() {
     fire = new FireParticle({
         source: new THREE.Vector3(-1.5, 0, -1.7),
@@ -488,53 +442,6 @@ function setupEnvMap() {
         texture.dispose();
     });
 
-}
-
-//setup dat.gui controls
-function setupControls() {
-
-    controls = new function() {
-        this.fireParams = { 
-            scale: 0.5,
-            length: 15, 
-            radius: 1, 
-            rate: 15, 
-            speed: 5
-        };
-
-        this.updateFireScale = () => {
-            fire.setScale(this.fireParams.scale);
-            fire2.setScale(this.fireParams.scale);
-        }
-
-        this.updateFireLength = () => {
-            fire.setLength(this.fireParams.length);
-            fire2.setLength(this.fireParams.length);
-        }
-        this.updateFireRadius = () => {
-            fire.setRadius(this.fireParams.radius);
-            fire2.setRadius(this.fireParams.radius);
-        }
-        this.updateFireRate = () => {
-            fire.setRate(this.fireParams.rate);
-            fire2.setRate(this.fireParams.rate);
-        }
-        this.updateFireSpeed = () => {
-            fire.setSpeed(this.fireParams.speed);
-            fire2.setSpeed(this.fireParams.speed);
-        }
-    }
-    gui = new GUI();
-
-    //let folder = gui.addFolder('Solar System');
-    //add general solar system controls here
-
-    let folder = gui.addFolder('Spaceship Parameters');
-    folder.add(controls.fireParams, 'scale', 0.5, 3).onChange(controls.updateFireScale).name('Particle Scale');
-    folder.add(controls.fireParams, 'length', 5, 50).onChange(controls.updateFireLength).name('Particle Length');
-    folder.add(controls.fireParams, 'radius', 0.5, 5).onChange(controls.updateFireRadius).name('Emitter Radius');
-    folder.add(controls.fireParams, 'rate', 1, 50).onChange(controls.updateFireRate).name('Particle Rate');
-    folder.add(controls.fireParams, 'speed', 0.5, 25).onChange(controls.updateFireSpeed).name('Particle Speed');
 }
 
 // Animation loop
@@ -679,6 +586,55 @@ function animateJump() {
     }
 
     renderer.render(scene, camera);
+}
+
+/**
+ * Set up controls
+ */
+function setupControls() {
+
+    controls = new function() {
+        this.fireParams = { 
+            scale: 0.5,
+            length: 15, 
+            radius: 1, 
+            rate: 15, 
+            speed: 5
+        };
+
+        this.updateFireScale = () => {
+            fire.setScale(this.fireParams.scale);
+            fire2.setScale(this.fireParams.scale);
+        }
+
+        this.updateFireLength = () => {
+            fire.setLength(this.fireParams.length);
+            fire2.setLength(this.fireParams.length);
+        }
+        this.updateFireRadius = () => {
+            fire.setRadius(this.fireParams.radius);
+            fire2.setRadius(this.fireParams.radius);
+        }
+        this.updateFireRate = () => {
+            fire.setRate(this.fireParams.rate);
+            fire2.setRate(this.fireParams.rate);
+        }
+        this.updateFireSpeed = () => {
+            fire.setSpeed(this.fireParams.speed);
+            fire2.setSpeed(this.fireParams.speed);
+        }
+    }
+    gui = new GUI();
+
+    //let folder = gui.addFolder('Solar System');
+    //add general solar system controls here
+
+    let folder = gui.addFolder('Spaceship Parameters');
+    folder.add(controls.fireParams, 'scale', 0.5, 3).onChange(controls.updateFireScale).name('Particle Scale');
+    folder.add(controls.fireParams, 'length', 5, 50).onChange(controls.updateFireLength).name('Particle Length');
+    folder.add(controls.fireParams, 'radius', 0.5, 5).onChange(controls.updateFireRadius).name('Emitter Radius');
+    folder.add(controls.fireParams, 'rate', 1, 50).onChange(controls.updateFireRate).name('Particle Rate');
+    folder.add(controls.fireParams, 'speed', 0.5, 25).onChange(controls.updateFireSpeed).name('Particle Speed');
 }
 
 /**
