@@ -9,7 +9,6 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { PMREMGenerator } from "three";
 import { GUI } from "dat.gui";
-import { mx_bilerp_0 } from "three/src/nodes/materialx/lib/mx_noise.js";
 import FireParticle from "./fire-particle.js";
 import Perlin from './perlin.js';
 
@@ -18,15 +17,15 @@ import Perlin from './perlin.js';
  */
 
 let stars, fire, fire2, asteroidGroup, scrollFire;
-let asteroid = new THREE.Object3D;
 let gui, controls;
+
+//variables for some animation controls
 const clock = new THREE.Clock();
-const pi = Math.PI;
 let animated = true;
-let jumpSpeed = 0.05; // Adjust for faster/slower jumps
+let jumpSpeed = 0.05;
 let angle = 0;
 let bones = {};
-let hasExploded = false; // Track explosion state
+let hasExploded = false;
 
 const scrollStartPos = new THREE.Vector3(7,14,0);
 let mvmtAmt = 0.8;
@@ -36,17 +35,6 @@ let arrowKeys = {
     ArrowLeft: false,
     ArrowRight: false
 };
-document.addEventListener("keydown", (event) => {
-    if (event.key in arrowKeys) {
-        arrowKeys[event.key] = true;
-    }
-});
-
-document.addEventListener("keyup", (event) => {
-    if (event.key in arrowKeys) {
-        arrowKeys[event.key] = false;
-    }
-});
 
 /**
  * Loaders
@@ -59,13 +47,46 @@ const textureLoader = new TextureLoader();
 const floader = new FontLoader();
 
 /**
- * Model Loaders
+ * Models
  */
 let home = new THREE.Object3D();
 let sign = new THREE.Object3D();
 let scroll = new THREE.Object3D();
 let charlie_brown = new THREE.Object3D();
+let asteroid = new THREE.Object3D();
 
+//for defining the path of the scroll
+class StraightLineCurve extends THREE.Curve {
+    constructor(start = new THREE.Vector3(0, 0, 0), end = new THREE.Vector3(10, 5, 0)) {
+        super();
+        this.start = start;
+        this.end = end;
+
+        //get the direction vector
+        this.direction = end.clone().sub(start).normalize();
+    }
+
+    //linearly interpolates over the line
+    getPoint(t) {
+        return this.start.clone().lerp(this.end, t);
+    }
+
+    //gets the tangent at a given point t
+    getTangent(t) {
+        this.direction = this.end.clone().sub(this.start).normalize();
+        return this.direction.clone();
+    }
+
+    //move the starting position
+    moveStart(x,y) {
+        this.start.add(new THREE.Vector3(0,y,x));
+    }
+
+    //set the start vector
+    setStart(start) {
+        this.start = start;
+    }
+}
 
 /**
  * Camera
@@ -91,33 +112,6 @@ document.body.appendChild(canvas);
 const pmremGenerator = new PMREMGenerator(renderer);
 pmremGenerator.compileEquirectangularShader();
 
-//for defining the path of the scroll
-class StraightLineCurve extends THREE.Curve {
-    constructor(start = new THREE.Vector3(0, 0, 0), end = new THREE.Vector3(10, 5, 0)) {
-        super();
-        this.start = start;
-        this.end = end;
-        this.direction = end.clone().sub(start).normalize(); // Compute constant direction
-    }
-
-    getPoint(t) {
-        return this.start.clone().lerp(this.end, t);
-    }
-
-    getTangent(t) {
-        this.direction = this.end.clone().sub(this.start).normalize(); // Compute constant direction
-        return this.direction.clone(); // Constant tangent along the line
-    }
-
-    moveStart(x,y) {
-        this.start.add(new THREE.Vector3(0,y,x));
-    }
-
-    setStart(start) {
-        this.start = start;
-    }
-}
-
 /**
  * Controls
  */
@@ -133,6 +127,10 @@ const scene = new THREE.Scene();
 //setup environment map and background texture
 setupEnvMap();
 
+/**
+ * Load Scene Objects
+ */
+
 // Create starfield
 createStarticles(3000);
 
@@ -140,16 +138,18 @@ createStarticles(3000);
 createShipExhaust();
 
 //create the sun
+//define the perlin class (see perlin.js)
 const perlin = new Perlin();
 
 let textureSize = 1024;
 let noiseScale = 10;
 
-//make the texture size **3 times 3 for vec3's
+//make the texture have the texture size squared. Also expects colour vectors of size 4 (RGBA)
 let textureData = new Uint8Array(textureSize * textureSize * 4);
 let texture = new THREE.DataTexture(textureData, textureSize, textureSize, THREE.RGBAFormat);
 texture.needsUpdate = true;
 
+//the sun colours to linearly interpolate between
 let sunShade = new THREE.Color(0xde3009);
 let sunShade2 = new THREE.Color(0xfae04b);
 
@@ -171,34 +171,35 @@ createShipExhaust();
 //create controls
 setupControls();
 
-
-const light = new THREE.AmbientLight(0xffffff, 0.5); // Soft white light
+//lighting - soft white ambient light
+const light = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(light);
 
+//directional light from the direction of the sun
 const sunLight = new THREE.DirectionalLight(0xffffff, 20); 
+//same position as the sun
 sunLight.position.set(500, 100, -500);  
 sunLight.target.position.set(0, 0, 0);
 scene.add(sunLight);
 
 // load ship
-objLoader.load(
+objLoader.load('./static/models/ship/Ship.obj',
 
-	// resource URL
-	'./static/models/ship/Ship.obj',
 	// called when resource is loaded
 	function ( ship ) {
         const shipTexture = textureLoader.load("./static/models/ship/textures/Albedo_Ship.png");
         const engineTexture = textureLoader.load("./static/models/ship/textures/Albedo_Engine.png");
         ship.traverse((child) => {
-            console.log(child.name); // Check names in console
+
             if (child.isMesh) {
-                // Assign materials based on object name
+
+                //assign the correct textures to the correct part of the model
                 if (child.name.includes("Engine")) {
                     child.material = new THREE.MeshStandardMaterial({ map: engineTexture });
                 } else if (child.name.includes("Vehicle")) {
                     child.material = new THREE.MeshStandardMaterial({ map: shipTexture });
                 } else {
-                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
                 }
             }
     
@@ -206,36 +207,38 @@ objLoader.load(
 
 		scene.add( ship );
 
-        // load turret onto ship
-        // Load the materials
+        //load turret onto ship
+        //load the materials
         mtlLoader.load('./static/models/turret/source/turret.mtl', (materials) => {
-            materials.preload(); // Preload the materials
+            materials.preload();
             
-            // Load the object
-            objLoader.setMaterials(materials); // Apply the materials to the object
+            //load the object
+            objLoader.setMaterials(materials);
             objLoader.load('./static/models/turret/source/turret.obj', (turret) => {
                 console.log("Turret loaded:", turret);
                 ship.add(turret);
+
+                //apply transformations to match the size relative to the ship's
                 turret.scale.set(0.0029, 0.0029, 0.0029);
                 turret.position.set(0, 2, -1);
                 turret.rotateY(Math.PI/2);
             });
         });
 
-        //create fire particles for the ships exhaust
-        
-
+        //add fire particles for the ships exhaust
+        //they were loaded previously since this method is async
+        //and the particles need to be loaded synchronously
         ship.add(fire.getMesh());
         ship.add(fire2.getMesh());
         ship.position.set(-100, 0,0);
         //ship.scale.set(30,30,30);
         ship.rotateY(Math.PI/2);
 	},
-	// called when loading is in progress
+
 	function ( xhr ) {
 		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 	},
-	// called when loading has errors
+
 	function ( error ) {
 		console.log( 'An error happened' );
 	}
@@ -250,61 +253,61 @@ planet.position.set(0, -35, 0);
 scene.add(planet);
 
 
-// Load home
+//load the house
 gltfLoader.load('./static/models/home/source/home.glb', function ( gltf ) {
         const homeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_0.png");
         const extraHomeTexture = textureLoader.load("./static/models/home/textures/gltf_embedded_1.png");
         home = gltf.scene;
         home.traverse((child) => {
             if (child.isMesh) {
-                // Assign materials based on object name
+                //assign the correct textures to the correct part of the model
                 if (child.name.includes("")) {
                     child.material = new THREE.MeshStandardMaterial({ map: homeTexture });
                 } else if (child.name.includes("node_id115")) {
                     child.material = new THREE.MeshStandardMaterial({ map: extraHomeTexture });
                 } else {
-                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
                 }
             }
     
         });
         home.scale.set(25, 25, 25);
-        home.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
+        home.position.set(9, 3.5, 5);
         home.rotateY(-Math.PI/1.55)
         scene.add(home);
 
 	},
-	// called while loading is progressing
+
 	function ( xhr ) {
 		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 	},
-	// called when loading has errors
+
 	function ( error ) {
 		console.log( error);
 	}
 );
 
-// Wooden Sign
+//load the wooden sign
 gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
         const signTexture = textureLoader.load("./static/models/wooden_sign/textures/lambert1_baseColor.jpeg");
         sign = gltf.scene;
         sign.traverse((child) => {
             if (child.isMesh) {
-                // Assign materials based on object name
+                //assign the correct textures to the correct part of the model
                 if (child.name.includes("")) {
                     child.material = new THREE.MeshStandardMaterial({ map: signTexture });
                     
                 } else {
-                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Default material
+                    child.material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
                 }
             }
         });
         sign.scale.set(25, 25, 25);
-        sign.position.set(9, 3.5, 5); // x, y, z (x = left right, y = up down, z = diagonal)
+        sign.position.set(9, 3.5, 5);
         sign.rotateY(-Math.PI/1.55)
         scene.add(sign);
 
-        // Adding text to sign
+        //add text to the sign - bold font
         floader.load('./static/models/fonts/helvetiker_bold.typeface.json',function(font){
             var geometry = new TextGeometry( 'M A I L   T I M E   !   !', {
                 font: font,
@@ -316,14 +319,18 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
                 bevelSize: 0.1,
                 bevelSegments: 0.1
             } );
+
+            //use phong material to get highlights from directional lighting
             var txt_mat = new THREE.MeshPhongMaterial({color:0xe33020});
             var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+
+            //transformations
             txt_mesh.scale.set(0.1,0.1);
             txt_mesh.position.set(-0.48, 0.37 ,0.1);
             sign.add(txt_mesh);
         } );
         
-        // Adding text to sign
+        //second line of text - regular font
         floader.load('./static/models/fonts/helvetiker_regular.typeface.json',function(font){
             var geometry = new TextGeometry('Charlie Brown wants his mail!', {
                 font: font,
@@ -335,8 +342,12 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
                 bevelSize: 0.1,
                 bevelSegments: 0.1
             } );
+
+            //use phong material to get highlights from directional lighting
             var txt_mat = new THREE.MeshPhongMaterial({color:0x000000});
             var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+
+            //transformations
             txt_mesh.scale.set(0.1,0.1);
             txt_mesh.position.set(-0.32, 0.27 ,0.1);
             sign.add(txt_mesh);
@@ -351,8 +362,12 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
                 bevelSize: 0.1,
                 bevelSegments: 0.1
             } );
+
+            //use phong material to get highlights from directional lighting
             var txt_mat = new THREE.MeshPhongMaterial({color:0x000000});
             var txt_mesh = new THREE.Mesh(geometry, txt_mat);
+
+            //transformations
             txt_mesh.scale.set(0.1,0.1);
             txt_mesh.position.set(-0.42, 0.17 ,0.1);
             sign.add(txt_mesh);
@@ -360,73 +375,78 @@ gltfLoader.load('./static/models/wooden_sign/scene.gltf', function ( gltf ) {
         } );
 
 	},
-	// called while loading is progressing
+
 	function ( xhr ) {
 		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 	},
-	// called when loading has errors
+
 	function ( error ) {
 		console.log( error);
 	}
 );
 
-// Charlie Brown
+//load Charlie Brown
 gltfLoader.load('./static/models/charlie_brown/scene.gltf', function ( gltf ) {
     const brownTexture = textureLoader.load("./static/models/charlie_brown/textures/01_-_Default_baseColor.png");
-  // Enable texture wrapping to prevent stretching
-  brownTexture.wrapS = THREE.RepeatWrapping;
-  brownTexture.wrapT = THREE.RepeatWrapping;
-  brownTexture.flipY = false; // Sometimes GLTF models require this fix
 
-  charlie_brown = gltf.scene;
+    //enable texture wrapping to prevent stretching
+    brownTexture.wrapS = THREE.RepeatWrapping;
+    brownTexture.wrapT = THREE.RepeatWrapping;
 
-  charlie_brown.traverse((child) => {
-      if (child.isMesh || child.isSkinnedMesh) {          
-          // Ensure child has a material
-          if (child.material) {
-              // If the mesh has multiple materials, apply texture to all
-              if (Array.isArray(child.material)) {
-                  child.material.forEach((mat) => {
-                      mat.map = brownTexture;
-                      mat.needsUpdate = true;
-                  });
-              } else {
-                  // Single material case
-                  child.material.map = brownTexture;
-                  child.material.needsUpdate = true;
-              }
-          }
-      }
+    //flip the texture so it appears correctly  
+    brownTexture.flipY = false;
 
-      if (child.isBone) {
-          bones[child.name] = child;
-      }
-  });
+    charlie_brown = gltf.scene;
 
-    // Adjust model positioning
-    charlie_brown.scale.set(25, 25, 25);
-    charlie_brown.position.set(-6, 0, -5);
-    charlie_brown.rotateY(-Math.PI / 1.75);
-    scene.add(charlie_brown);
+    charlie_brown.traverse((child) => {
+        if (child.isMesh || child.isSkinnedMesh) {          
+            if (child.material) {
+                //the mesh has multiple materials, apply texture to all
+                if (Array.isArray(child.material)) {
+                    child.material.forEach((mat) => {
+                        mat.map = brownTexture;
+                        mat.needsUpdate = true;
+                    });
+                } else {
+                    //only one material
+                    child.material.map = brownTexture;
+                    child.material.needsUpdate = true;
+                }
+            }
+        }
 
-    animateJump();
+        if (child.isBone) {
+            bones[child.name] = child;
+        }
+    });
+
+        //transformations
+        charlie_brown.scale.set(25, 25, 25);
+        charlie_brown.position.set(-6, 0, -5);
+        charlie_brown.rotateY(-Math.PI / 1.75);
+        scene.add(charlie_brown);
+
+        animateJump();
 },
 
-    // called while loading is progressing
+
     function ( xhr ) {
         console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
     },
-    // called when loading has errors
+
     function ( error ) {
         console.log( error);
     }
 );
+
+//setup mail flying animation
+//the path the mail will fly on
 let linePath = new StraightLineCurve(scrollStartPos, new THREE.Vector3(90,11.5,0));
 
 let movementTime = 0;
-let movementSpeed = 0.01; // control swim speed
+let movementSpeed = 0.01;
 
-// Scroll / Newspaper loader
+//load the scroll/newspaper
 gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
     scroll = gltf.scene;
     
@@ -434,6 +454,7 @@ gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
     scroll.rotateY(-Math.PI/1.55)
     scene.add(scroll);
     
+    //reuse fire particle effect for scroll animation
     scrollFire = new FireParticle({
         source: new THREE.Vector3(-1.8, 0.25, 0),
         direction: new THREE.Vector3(-1, 0, 0).normalize(), 
@@ -443,39 +464,49 @@ gltfLoader.load('./static/models/stylized_note/scene.gltf', function ( gltf ) {
         rate: 70, 
         speed: 15
     });
+
+    //parent the particles to the mesh
     scroll.add(scrollFire.getMesh());
 
     animateScroll();
 
 },
-// called while loading is progressing
+
 function ( xhr ) {
     console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 },
-// called when loading has errors
+
 function ( error ) {
     console.log( error);
 }
 );
 
-// Create the starfield
+//create the star particles
 function createStarticles(starsCount) {
+    //use buffer geometry since we will have a lot of points
     const starsGeometry = new THREE.BufferGeometry();
 
+    //setup the positions
     const positions = new Float32Array(starsCount * 3);
 
     for (let i = 0; i < starsCount * 3; i++) {
-        positions[i] = (Math.random() - 0.5) * 2000; // Spread stars across space
+        //randomly create the coordinates of the stars within range
+        positions[i] = (Math.random() - 0.5) * 2000;
     }
 
     starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
+    //use points materials to get particle effect
     const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, sizeAttenuation: true });
     stars = new THREE.Points(starsGeometry, starsMaterial);
+
+    //add to scene
     scene.add(stars);
 }
 
+//create the fire particles coming out of the ship
 function createShipExhaust() {
+    //use fire particle class from fire=particle.js
     fire = new FireParticle({
         source: new THREE.Vector3(-1.5, 0, -1.7),
         direction: new THREE.Vector3(0, 0, -1).normalize(), 
@@ -486,6 +517,7 @@ function createShipExhaust() {
         speed: 5
     });
     
+    //second exhaust
     fire2 = new FireParticle({
         source: new THREE.Vector3(1.5, 0, -1.7),
         direction: new THREE.Vector3(0, 0, -1).normalize(), 
@@ -498,7 +530,7 @@ function createShipExhaust() {
 }
 
 function setupEnvMap() {
-    // load the HDRI texture and use it as the environment map to get ambient lighting
+    //load the HDRI texture and use it as the environment map to get ambient lighting
     rgbeLoader.load('./static/envMaps/2k_stars_milky_way.hdr', texture => {
 
         //since we have a spherical map, we need to enable the correct mapping
@@ -528,11 +560,13 @@ function setupEnvMap() {
 
 }
 
+//generates the sun texture with 2D Perlin noise
 function updateSunTexture(elapsedTime) {
+    //make a square texture
     for (let y = 0; y < textureSize; y++) {
         for (let x = 0; x < textureSize; x++) {
 
-            
+            //get the t value using Perlin noise, noise scalee and elapsed time
             let t = perlin.generateNoise((x / noiseScale) + (elapsedTime * 0.5), (y / noiseScale) + (elapsedTime * 0.5));
 
             //normalize to the range 0,1
@@ -541,24 +575,30 @@ function updateSunTexture(elapsedTime) {
             // interpolate between the sun colours
             let interpColour = new THREE.Color().lerpColors(sunShade, sunShade2, t);
 
+            //get the index of the current position in the texture
             let index = (y * textureSize + x) * 4;
+
+            //set the colour and alpha value into the texture
             textureData[index] = interpColour.r * 255;
             textureData[index + 1] = interpColour.g * 255;
             textureData[index + 2] = interpColour.b * 255;
-            texture[index + 3] = 255;
+            textureData[index + 3] = 255;
         }
     }
 
     texture.needsUpdate = true;
 }
 
+//generate the asteroid belt
 function generateAsteroids(numAsteroids, radius, variationX, variationY, variationZ) {
 
+    //first, we need to load the model and textures
     gltfLoader.load('./static/models/asteroid/scene.gltf', function ( gltf ) {
         const asteroidTexture = textureLoader.load("./static/models/asteroid/textures/material_0_baseColor.png");
         const asteroidTexture2 = textureLoader.load("./static/models/asteroid/textures/material_0_metallicRoughness.png");
         const asteroidTexture3 = textureLoader.load("./static/models/asteroid/textures/material_0_normal.png");
 
+        //need to flip the textures so that they appear correctly
         asteroidTexture.flipY = false;
         
         asteroidTexture2.flipY = false;
@@ -567,7 +607,7 @@ function generateAsteroids(numAsteroids, radius, variationX, variationY, variati
         asteroid = gltf.scene;
         asteroid.traverse((child) => {
             if (child.isMesh) {
-                console.log(child.name);
+                //console.log(child.name);
                 
                 //apply materials to the mesh
                 let material = new THREE.MeshStandardMaterial({
@@ -584,8 +624,11 @@ function generateAsteroids(numAsteroids, radius, variationX, variationY, variati
     
         });
 
+        //create a new group for the asteroids to control their rotation
         asteroidGroup = new THREE.Group();
         scene.add(asteroidGroup);
+
+        //generate the asteroids with variation in their coordinates with Perlin noise
         for (let i = 0; i < numAsteroids; i++) {
 
             //random angle in the circle
@@ -608,11 +651,11 @@ function generateAsteroids(numAsteroids, radius, variationX, variationY, variati
         }
 
 	},
-	// called while loading is progressing
+
 	function ( xhr ) {
 		console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 	},
-	// called when loading has errors
+
 	function ( error ) {
 		console.log( error);
 	});
@@ -620,50 +663,23 @@ function generateAsteroids(numAsteroids, radius, variationX, variationY, variati
     
 }
 
-// Animation loop
-function animate() {
-    requestAnimationFrame(animate);
-
-    let delta = clock.getDelta();
-
-    //update the particle emitters with elapsed time
-    fire.update(delta);
-    fire2.update(delta);
-    //fire3.update(delta);
-
-    if ( scrollFire != undefined) {
-        scrollFire.update(delta);
-    }
-    
-    updateSunTexture(delta);
-    
-    // Slight rotation for a twinkling effect
-    stars.rotation.y += 0.0005;
-
-    //rotate asteroids
-    if (asteroidGroup != undefined) {
-        asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
-    }
-
-    //update the orbit controls in animation loop to improve framerate
-    orbit.update();
-
-    render();
-}
-animate();
-
+//create the mail explosion when it reaches Charlie Brown
 function createExplosion(position) {
+    //number of particles in the animation
     const particleCount = 100;
+
+    //particle specific information
     const particlesGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
     const velocities = [];
 
+    //cteate the particles
     for (let i = 0; i < particleCount; i++) {
         positions[i * 3] = position.x;
         positions[i * 3 + 1] = position.y;
         positions[i * 3 + 2] = position.z;
 
-        // Random velocity for explosion effect
+        //random velocity for explosion effect
         velocities.push(
             (Math.random() - 0.5) * 5, // X velocity
             (Math.random() - 0.5) * 5, // Y velocity
@@ -673,7 +689,7 @@ function createExplosion(position) {
 
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const particlesMaterial = new THREE.PointsMaterial({
-        color: 0xffd700, // Gold color for explosion
+        color: 0xffd700, //gold color for explosion
         size: 2,
         transparent: true,
         opacity: 1,
@@ -708,12 +724,16 @@ function createExplosion(position) {
 function animateScroll() {
     requestAnimationFrame(animateScroll);
 
-    if (animated) { // for animation toggle
+    //check if mail needs to be animated
+    if (animated) {
 
-        movementTime += movementSpeed; // Increase movement along the curve
-        let time = movementTime % 1; // Keep time between 0 and 1
+        //increase the position of the mail along the trajectory
+        movementTime += movementSpeed;
+        let time = movementTime % 1;
+
         let position = linePath.getPoint(time);
         let tangent = linePath.getTangent(time).normalize();
+
         if (scroll) {
             if (arrowKeys.ArrowUp) {
                 //console.log("up key press")
@@ -738,20 +758,27 @@ function animateScroll() {
             scroll.position.set(-100 + position.x, -10 + position.y, 0 + position.z);
           
             scroll.rotateOnAxis(linePath, Math.PI/4)
-          
+            
+            //align scroll along tangent of trajectory
             let quaternion = new THREE.Quaternion();
-            quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent); // Align scroll forward to tangent
+            quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), tangent);
             scroll.quaternion.copy(quaternion);
             
-            // Trigger explosion **only once** when reaching the end
+            //trigger explosion **only once** when reaching the end
             if (time > 0.99 && !hasExploded) { 
                 linePath.setStart(new THREE.Vector3(7,14,0));
-                let explosionPosition = scroll.position.clone(); // Capture position BEFORE reset
-                createExplosion(explosionPosition); // Use captured position
-                hasExploded = true; // Mark explosion as triggered
+
+                //capture position BEFORE reset
+                let explosionPosition = scroll.position.clone(); 
+
+                //use captured position
+                createExplosion(explosionPosition); 
+
+                //mark explosion as triggered
+                hasExploded = true;
             }
 
-            // Reset explosion flag when movement starts over
+            //reset explosion flag when movement starts over
             if (time < movementSpeed) {
                 hasExploded = false;
             }
@@ -760,7 +787,7 @@ function animateScroll() {
     render();
 }
 
-
+//animates the jumping of Charlie Brown
 function animateJump() {
     requestAnimationFrame(animateJump);
 
@@ -771,17 +798,17 @@ function animateJump() {
         return;
     }
 
-    // **Jump Height Calculation**
+    //jump height calculation
     let jumpHeight = Math.sin(angle) * 3; // Moves up/down smoothly
     charlie_brown.position.y = 1.95 + jumpHeight;
 
-    // **Arms Transition (0 when down, 1 when up)**
-    let peakFactor = (Math.sin(angle) + 1) / 2; // Maps -1 to 1 → 0 to 1
+    //arms transition (0 when down, 1 when up)
+    let peakFactor = (Math.sin(angle) + 1) / 2; //maps -1 to 1 -> 0 to 1
 
-    let armRaise = peakFactor * 1;  // Arms fully raised at 1
-    let legSpread = peakFactor * 1; // Legs fully apart at 1
+    let armRaise = peakFactor * 1;  //arms fully raised at 1
+    let legSpread = peakFactor * 1; //legs fully apart at 1
 
-    // **Apply animation to limbs**
+    //apply animation to limbs
     if (bones.joint_KneeLT_01_076 && bones.joint_KneeRT_01_081) {
         bones.joint_KneeLT_01_076.rotation.x = legSpread;
         bones.joint_KneeRT_01_081.rotation.x = legSpread;
@@ -844,6 +871,38 @@ function setupControls() {
     folder.add(controls.fireParams, 'speed', 0.5, 25).onChange(controls.updateFireSpeed).name('Particle Speed');
 }
 
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+
+    let delta = clock.getDelta();
+
+    //update the particle emitters with elapsed time
+    fire.update(delta);
+    fire2.update(delta);
+    //fire3.update(delta);
+
+    if ( scrollFire != undefined) {
+        scrollFire.update(delta);
+    }
+    
+    updateSunTexture(delta);
+    
+    // Slight rotation for a twinkling effect
+    stars.rotation.y += 0.0005;
+
+    //rotate asteroids
+    if (asteroidGroup != undefined) {
+        asteroidGroup.rotation.y = (asteroidGroup.rotation.y + (Math.pow(2, -5) * delta)) % (Math.PI * 2)
+    }
+
+    //update the orbit controls in animation loop to improve framerate
+    orbit.update();
+
+    render();
+}
+animate();
+
 /**
  * Event Listeners
  */
@@ -853,6 +912,18 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
+});
+
+document.addEventListener("keydown", (event) => {
+    if (event.key in arrowKeys) {
+        arrowKeys[event.key] = true;
+    }
+});
+
+document.addEventListener("keyup", (event) => {
+    if (event.key in arrowKeys) {
+        arrowKeys[event.key] = false;
+    }
 });
 
 //orbit.addEventListener( 'change', render );

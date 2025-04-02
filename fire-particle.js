@@ -1,5 +1,7 @@
 import * as THREE from "three";
 
+//class inspireed by Bobby Roe
+//https://github.com/bobbyroe/Simple-Particle-Effects
 export default class FireParticle {
 
     particleRateBuffer = 0.0
